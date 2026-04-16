@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>终面：AI面试官</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="app-shell">
+      <section class="hero panel">
+        <div>
+          <p class="eyebrow">AI Interview Survival Game</p>
+          <h1>终面：AI面试官</h1>
+          <p class="hero-copy">
+            让 AI 解析简历、生成追问、施加压力并给出结局。你不是在答题，你是在高压下圆一个可信的人设。
+          </p>
+        </div>
+        <div class="hero-meta">
+          <span id="runtime-badge" class="badge">检测中</span>
+          <p id="runtime-reason" class="muted">正在读取运行状态</p>
+        </div>
+      </section>
+
+      <section id="setup-view" class="panel view active">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 01</p>
+            <h2>配置本局面试</h2>
+          </div>
+          <button id="mock-resume-btn" class="ghost-btn">生成 AI 简历草稿</button>
+        </div>
+
+        <div class="setup-grid">
+          <div class="field">
+            <span>难度</span>
+            <div id="difficulty-list" class="chips"></div>
+          </div>
+
+          <div class="field">
+            <span>岗位</span>
+            <div id="role-list" class="card-grid"></div>
+          </div>
+
+          <div class="field">
+            <span>面试官人格</span>
+            <div id="interviewer-list" class="card-grid interviewer-grid"></div>
+          </div>
+
+          <div class="field">
+            <span>简历模式</span>
+            <div class="mode-switch">
+              <button data-mode="custom" class="mode-btn active">自定义简历</button>
+              <button data-mode="ai-generated" class="mode-btn">AI 生成简历</button>
+            </div>
+          </div>
+
+          <label class="field full">
+            <span>简历内容</span>
+            <textarea
+              id="resume-text"
+              rows="11"
+              placeholder="粘贴一份真实简历，或者点击上方按钮生成可演示的 AI 简历。"
+            ></textarea>
+          </label>
+        </div>
+
+        <div class="start-row">
+          <button id="start-btn" class="primary-btn">开始面试</button>
+          <p class="muted">建议先用 Mock 模式把流程走通，再接入正式 API。</p>
+        </div>
+      </section>
+
+      <section id="interview-view" class="view">
+        <div class="hud panel">
+          <div class="hud-card">
+            <span>当前轮次</span>
+            <strong id="turn-indicator">1 / 4</strong>
+          </div>
+          <div class="hud-card">
+            <span>总分</span>
+            <strong id="score-indicator">60</strong>
+          </div>
+          <div class="hud-card">
+            <span>压力值</span>
+            <strong id="stress-indicator">20</strong>
+            <div class="meter">
+              <div id="stress-fill" class="meter-fill stress"></div>
+            </div>
+          </div>
+          <div class="hud-card">
+            <span>面试官</span>
+            <strong id="keyword-indicator">未设置</strong>
+          </div>
+        </div>
+
+        <div class="interview-layout">
+          <aside class="side-panel panel">
+            <h3>本局档案</h3>
+            <div id="session-brief" class="session-brief"></div>
+            <div class="analysis-box">
+              <h4>AI 关注点</h4>
+              <ul id="focus-list" class="list"></ul>
+            </div>
+          </aside>
+
+          <section class="chat-panel panel">
+            <div id="transcript" class="transcript"></div>
+            <div class="answer-box">
+              <textarea id="answer-input" rows="5" placeholder="回答时尽量讲清楚：动作、依据、结果。"></textarea>
+              <div class="answer-actions">
+                <p class="muted">短答案会显著拉高压力值。</p>
+                <button id="submit-answer-btn" class="primary-btn">提交回答</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="result-view" class="panel view">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Final Report</p>
+            <h2 id="result-title">面试结果</h2>
+          </div>
+          <button id="restart-btn" class="ghost-btn">再来一局</button>
+        </div>
+
+        <div class="result-layout">
+          <div class="result-main">
+            <div class="result-badge" id="result-badge">待定</div>
+            <p id="result-summary" class="result-summary"></p>
+            <blockquote id="result-quote" class="quote"></blockquote>
+            <p id="result-tips" class="muted"></p>
+          </div>
+
+          <div class="result-side">
+            <div class="analysis-box">
+              <h4>高光回答</h4>
+              <p id="highlight-text"></p>
+            </div>
+            <div class="analysis-box">
+              <h4>翻车回答</h4>
+              <p id="flop-text"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dimension-box">
+          <h3>六维评分</h3>
+          <div id="dimension-grid" class="dimension-grid"></div>
+        </div>
+
+        <div class="analysis-box share-box">
+          <h4>分享文案</h4>
+          <div id="share-lines"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
