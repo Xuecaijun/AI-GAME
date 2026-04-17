@@ -62,11 +62,20 @@ class AppHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/resume/mock":
                 self._send_json(engine.generate_mock_resume(payload))
                 return
+            if parsed.path == "/api/invitations":
+                self._send_json(engine.build_invitations(payload))
+                return
             if parsed.path == "/api/session/start":
                 self._send_json(engine.start_session(payload))
                 return
             if parsed.path == "/api/session/answer":
                 self._send_json(engine.submit_answer(payload))
+                return
+            if parsed.path == "/api/session/timeout":
+                self._send_json(engine.submit_timeout(payload))
+                return
+            if parsed.path == "/api/session/event":
+                self._send_json(engine.submit_event(payload))
                 return
             self._send_json({"error": "Not Found"}, status=HTTPStatus.NOT_FOUND)
         except ValueError as exc:
@@ -82,13 +91,19 @@ class AppHandler(SimpleHTTPRequestHandler):
         return json.loads(raw)
 
     def _send_json(self, payload: dict, status: int = HTTPStatus.OK) -> None:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        body = json.dumps(payload, ensure_ascii=False, default=_json_default).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
+
+
+def _json_default(value):
+    if isinstance(value, set):
+        return list(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 def main() -> None:

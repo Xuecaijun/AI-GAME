@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>终面：AI面试官</title>
+    <title>ShowMeTheOffer · AI 面试生存游戏</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="noise"></div>
     <main class="app-shell">
-      <section class="hero panel">
+      <section class="hero panel" id="hero">
         <div>
-          <p class="eyebrow">AI Interview Survival Game</p>
+          <p class="eyebrow">ShowMeTheOffer · AI Interview Survival</p>
           <h1>终面：AI面试官</h1>
           <p class="hero-copy">
-            让 AI 解析简历、生成追问、施加压力并给出结局。你不是在答题，你是在高压下圆一个可信的人设。
+            上传简历 → 收到面试官邀请 → 进入仿腾讯会议的面试间。AI 会判题、深挖、发起随机事件。撑到通过线即可拿到 Offer。
           </p>
         </div>
         <div class="hero-meta">
@@ -23,11 +23,12 @@
         </div>
       </section>
 
-      <section id="setup-view" class="panel view active">
+      <!-- ==================== STEP 1：简历 ==================== -->
+      <section id="resume-view" class="panel view active">
         <div class="section-head">
           <div>
             <p class="eyebrow">Step 01</p>
-            <h2>配置本局面试</h2>
+            <h2>配置你的简历</h2>
           </div>
           <button id="mock-resume-btn" class="ghost-btn">生成 AI 简历草稿</button>
         </div>
@@ -39,13 +40,8 @@
           </div>
 
           <div class="field">
-            <span>岗位</span>
+            <span>应聘岗位</span>
             <div id="role-list" class="card-grid"></div>
-          </div>
-
-          <div class="field">
-            <span>面试官人格</span>
-            <div id="interviewer-list" class="card-grid interviewer-grid"></div>
           </div>
 
           <div class="field">
@@ -61,63 +57,161 @@
             <textarea
               id="resume-text"
               rows="11"
-              placeholder="粘贴一份真实简历，或者点击上方按钮生成可演示的 AI 简历。"
+              placeholder="粘贴一份真实简历，或点击右上角“生成 AI 简历草稿”。"
             ></textarea>
           </label>
         </div>
 
         <div class="start-row">
-          <button id="start-btn" class="primary-btn">开始面试</button>
-          <p class="muted">建议先用 Mock 模式把流程走通，再接入正式 API。</p>
+          <button id="to-invitations-btn" class="primary-btn">分析简历 · 收取邀请</button>
+          <p class="muted">系统会分析简历，然后随机抽取 3 位面试官向你发起邀请。</p>
         </div>
       </section>
 
-      <section id="interview-view" class="view">
-        <div class="hud panel">
-          <div class="hud-card">
-            <span>当前轮次</span>
-            <strong id="turn-indicator">1 / 4</strong>
+      <!-- ==================== STEP 2：邀请 ==================== -->
+      <section id="invitation-view" class="panel view">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 02</p>
+            <h2>你收到了这些面试邀请</h2>
           </div>
-          <div class="hud-card">
-            <span>总分</span>
-            <strong id="score-indicator">60</strong>
-          </div>
-          <div class="hud-card">
-            <span>压力值</span>
-            <strong id="stress-indicator">20</strong>
-            <div class="meter">
-              <div id="stress-fill" class="meter-fill stress"></div>
-            </div>
-          </div>
-          <div class="hud-card">
-            <span>面试官</span>
-            <strong id="keyword-indicator">未设置</strong>
-          </div>
+          <button id="back-to-resume-btn" class="ghost-btn">返回修改简历</button>
         </div>
 
-        <div class="interview-layout">
-          <aside class="side-panel panel">
-            <h3>本局档案</h3>
-            <div id="session-brief" class="session-brief"></div>
-            <div class="analysis-box">
-              <h4>AI 关注点</h4>
-              <ul id="focus-list" class="list"></ul>
-            </div>
-          </aside>
+        <div id="invitation-analysis" class="analysis-box">
+          <h4>AI 简历分析</h4>
+          <p class="muted" id="invitation-blurb">正在分析……</p>
+          <ul id="invitation-strengths" class="list"></ul>
+          <ul id="invitation-risks" class="list warn"></ul>
+        </div>
 
-          <section class="chat-panel panel">
-            <div id="transcript" class="transcript"></div>
-            <div class="answer-box">
-              <textarea id="answer-input" rows="5" placeholder="回答时尽量讲清楚：动作、依据、结果。"></textarea>
-              <div class="answer-actions">
-                <p class="muted">短答案会显著拉高压力值。</p>
-                <button id="submit-answer-btn" class="primary-btn">提交回答</button>
+        <div id="invitation-list" class="invitation-grid"></div>
+      </section>
+
+      <!-- ==================== STEP 3：仿 TX 会议面试 ==================== -->
+      <section id="meeting-view" class="view meeting">
+        <header class="meeting-bar panel">
+          <div class="meeting-title">
+            <span class="dot-live"></span>
+            终面会议室 · <span id="meeting-role">—</span>
+          </div>
+          <div class="meeting-clock">
+            <span>第 <b id="round-idx">1</b> / <span id="round-total">—</span> 轮</span>
+            <span id="meeting-clock">00:00</span>
+          </div>
+          <div class="meeting-hud">
+            <span class="hud-pill">综合 <b id="hud-score">0</b></span>
+            <span class="hud-pill">本轮 <b id="hud-round-score">100</b></span>
+            <span class="hud-pill">通过线 <b id="hud-pass">70</b></span>
+            <span class="hud-pill stress-pill">
+              压力 <b id="hud-stress">0</b>
+              <span class="mini-meter"><span id="stress-fill" class="mini-fill"></span></span>
+            </span>
+          </div>
+        </header>
+
+        <div class="meeting-layout">
+          <section class="tile-grid panel">
+            <div class="tile interviewer-tile" id="tile-interviewer">
+              <div class="tile-avatar">
+                <span id="tile-avatar-initial">面</span>
+                <span class="speaking-ring"></span>
+              </div>
+              <div class="tile-name">
+                <span id="tile-name">面试官</span>
+                <small id="tile-title">—</small>
+              </div>
+              <span class="tile-badge">主面试官</span>
+            </div>
+            <div class="tile self-tile">
+              <div class="tile-avatar self">
+                <span>你</span>
+              </div>
+              <div class="tile-name">
+                <span>你</span>
+                <small>摄像头已关闭</small>
+              </div>
+              <span class="tile-badge self-badge">候选人</span>
+            </div>
+            <div class="tile ghost-tile">
+              <div class="tile-avatar ghost">HR</div>
+              <div class="tile-name">
+                <span>HR 旁听</span>
+                <small>静音中</small>
+              </div>
+            </div>
+            <div class="tile ghost-tile">
+              <div class="tile-avatar ghost">AI</div>
+              <div class="tile-name">
+                <span>录制中</span>
+                <small>仅供面试内部回放</small>
               </div>
             </div>
           </section>
+
+          <aside class="meeting-side panel">
+            <div class="side-head">
+              <h3>实时字幕 / 聊天</h3>
+              <span id="phase-indicator" class="phase-indicator">作答中</span>
+            </div>
+            <div id="transcript" class="transcript"></div>
+            <div class="drill-indicator" id="drill-indicator">
+              <span class="drill-dot" data-depth="1"></span>
+              <span class="drill-dot" data-depth="2"></span>
+              <span class="drill-dot" data-depth="3"></span>
+              <small>深挖层数</small>
+            </div>
+          </aside>
+        </div>
+
+        <footer class="answer-dock panel">
+          <div class="timer-row">
+            <div class="timer-bar"><div id="timer-fill"></div></div>
+            <span id="timer-text" class="timer-text">--</span>
+          </div>
+          <div class="answer-input-row">
+            <textarea
+              id="answer-input"
+              rows="3"
+              placeholder="回答时尽量讲清楚：动作 / 依据 / 结果。"
+            ></textarea>
+          </div>
+          <div class="fake-toolbar">
+            <div class="fake-tools">
+              <button class="tool-btn" disabled title="麦克风">🎤</button>
+              <button class="tool-btn" disabled title="摄像头">📷</button>
+              <button class="tool-btn" disabled title="共享屏幕">🖥️</button>
+              <button class="tool-btn" disabled title="聊天">💬</button>
+            </div>
+            <div class="main-actions">
+              <button id="leave-btn" class="ghost-btn danger">提前离开</button>
+              <button id="submit-answer-btn" class="primary-btn">提交回答</button>
+            </div>
+          </div>
+        </footer>
+
+        <!-- 随机事件弹窗 -->
+        <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modal-card panel">
+            <div class="modal-head">
+              <h3>突发事件</h3>
+              <span id="event-timer-text" class="timer-text">--</span>
+            </div>
+            <p id="event-intro" class="event-intro"></p>
+            <p id="event-prompt" class="event-prompt"></p>
+            <div id="event-choice-area" class="event-choice-area hidden"></div>
+            <div id="event-text-area" class="event-text-area hidden">
+              <textarea id="event-text-input" rows="3" placeholder="在这里回应……"></textarea>
+              <button id="event-text-submit" class="primary-btn">提交回应</button>
+            </div>
+            <div class="event-timer-row">
+              <div class="timer-bar"><div id="event-timer-fill"></div></div>
+            </div>
+          </div>
         </div>
       </section>
 
+      <!-- ==================== STEP 4：结果 ==================== -->
       <section id="result-view" class="panel view">
         <div class="section-head">
           <div>
@@ -125,6 +219,24 @@
             <h2 id="result-title">面试结果</h2>
           </div>
           <button id="restart-btn" class="ghost-btn">再来一局</button>
+        </div>
+
+        <div id="offer-letter" class="offer-letter hidden">
+          <header class="letter-head">
+            <span class="letter-badge">OFFER</span>
+            <h3 id="offer-company">—</h3>
+          </header>
+          <p class="letter-row"><b>岗位</b>：<span id="offer-position">—</span></p>
+          <p class="letter-row"><b>薪资</b>：<span id="offer-salary">—</span></p>
+          <p class="letter-row"><b>到岗</b>：<span id="offer-start">—</span></p>
+          <p class="letter-body" id="offer-body">—</p>
+          <p class="letter-sign" id="offer-signature">—</p>
+        </div>
+
+        <div id="reject-card" class="reject-card hidden">
+          <span class="reject-stamp">REJECTED</span>
+          <h3>很遗憾，本次你没有通过终面。</h3>
+          <p id="reject-reason" class="muted"></p>
         </div>
 
         <div class="result-layout">
@@ -144,11 +256,15 @@
               <h4>翻车回答</h4>
               <p id="flop-text"></p>
             </div>
+            <div class="analysis-box">
+              <h4>各轮得分</h4>
+              <ol id="round-score-list" class="round-list"></ol>
+            </div>
           </div>
         </div>
 
         <div class="dimension-box">
-          <h3>六维评分</h3>
+          <h3>六维评分（仅用于复盘）</h3>
           <div id="dimension-grid" class="dimension-grid"></div>
         </div>
 
