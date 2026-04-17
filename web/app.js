@@ -1,6 +1,9 @@
 const state = {
   bootstrap: null,
   selectedRoleId: null,
+  selectedRoleMode: "preset",
+  customRoleTitle: "",
+  selectedInterviewTrack: "technical",
   selectedDifficulty: "normal",
   resumeMode: "custom",
   invitations: null,
@@ -31,6 +34,9 @@ const els = {
   resumeView: el("resume-view"),
   difficultyList: el("difficulty-list"),
   roleList: el("role-list"),
+  customRoleInput: el("custom-role-input"),
+  interviewTrackList: el("interview-track-list"),
+  interviewTrackHint: el("interview-track-hint"),
   resumeText: el("resume-text"),
   mockResumeBtn: el("mock-resume-btn"),
   toInvitationsBtn: el("to-invitations-btn"),
@@ -41,6 +47,9 @@ const els = {
   invitationBlurb: el("invitation-blurb"),
   invitationStrengths: el("invitation-strengths"),
   invitationRisks: el("invitation-risks"),
+  trackPlaceholder: el("track-placeholder"),
+  trackPlaceholderTitle: el("track-placeholder-title"),
+  trackPlaceholderDesc: el("track-placeholder-desc"),
   invitationList: el("invitation-list"),
   backToResumeBtn: el("back-to-resume-btn"),
 
@@ -125,6 +134,16 @@ function bindEvents() {
   els.leaveBtn.addEventListener("click", leaveEarly);
   els.restartBtn.addEventListener("click", resetAll);
   els.eventTextSubmit.addEventListener("click", () => submitEvent({ text: els.eventTextInput.value }));
+  els.customRoleInput.addEventListener("input", () => {
+    state.customRoleTitle = els.customRoleInput.value.trim();
+    if (state.customRoleTitle) {
+      state.selectedRoleMode = "custom";
+    } else if (state.selectedRoleMode === "custom") {
+      state.selectedRoleMode = "preset";
+      state.selectedRoleId = state.bootstrap?.roles?.[0]?.id ?? null;
+    }
+    renderRoles();
+  });
 }
 
 /* =====================================================================
@@ -136,6 +155,8 @@ async function loadBootstrap() {
     const data = await apiGet("/api/bootstrap");
     state.bootstrap = data;
     state.selectedRoleId = data.roles[0]?.id ?? null;
+    state.selectedRoleMode = "preset";
+    state.selectedInterviewTrack = data.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
     renderBootstrap();
   } catch (err) {
     alert(err.message || "初始化失败");
@@ -146,6 +167,7 @@ function renderBootstrap() {
   renderRuntime(state.bootstrap.runtime);
   renderDifficulties();
   renderRoles();
+  renderInterviewTracks();
 }
 
 function renderRuntime(runtime) {
@@ -173,21 +195,74 @@ function renderDifficulties() {
 
 function renderRoles() {
   els.roleList.innerHTML = "";
+  const randomCard = document.createElement("button");
+  randomCard.type = "button";
+  randomCard.className = `select-card random-card ${state.selectedRoleMode === "random" ? "active" : ""}`;
+  randomCard.innerHTML = `
+    <h4>随机岗位</h4>
+    <p>不指定岗位，由系统从当前岗位库中随机为你挑选一个。</p>
+    <small>系统任选 / 惊喜挑战 / 开局随机</small>
+  `;
+  randomCard.addEventListener("click", () => {
+    state.selectedRoleMode = "random";
+    state.customRoleTitle = "";
+    els.customRoleInput.value = "";
+    renderRoles();
+  });
+  els.roleList.appendChild(randomCard);
+
   state.bootstrap.roles.forEach((role) => {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = `select-card ${role.id === state.selectedRoleId ? "active" : ""}`;
+    card.className = `select-card ${state.selectedRoleMode === "preset" && role.id === state.selectedRoleId ? "active" : ""}`;
     card.innerHTML = `
       <h4>${role.title}</h4>
       <p>${role.summary}</p>
       <small>${role.keywords.slice(0, 3).join(" / ")}</small>
     `;
     card.addEventListener("click", () => {
+      state.selectedRoleMode = "preset";
       state.selectedRoleId = role.id;
+      state.customRoleTitle = "";
+      els.customRoleInput.value = "";
       renderRoles();
     });
     els.roleList.appendChild(card);
   });
+
+  const customCard = document.createElement("button");
+  customCard.type = "button";
+  customCard.className = `select-card custom-card ${state.selectedRoleMode === "custom" ? "active" : ""}`;
+  customCard.innerHTML = `
+    <h4>自定义岗位</h4>
+    <p>${escapeHtml(state.customRoleTitle || "输入任意岗位名称，系统会按该岗位生成简历与面试内容。")}</p>
+    <small>任意职业 / 自定义挑战 / 通用适配</small>
+  `;
+  customCard.addEventListener("click", () => {
+    state.selectedRoleMode = "custom";
+    renderRoles();
+    els.customRoleInput.focus();
+  });
+  els.roleList.appendChild(customCard);
+}
+
+function renderInterviewTracks() {
+  els.interviewTrackList.innerHTML = "";
+  (state.bootstrap.interviewTracks || []).forEach((track) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `chip ${track.id === state.selectedInterviewTrack ? "active" : ""}`;
+    button.textContent = track.label;
+    button.title = track.description || "";
+    button.addEventListener("click", () => {
+      state.selectedInterviewTrack = track.id;
+      renderInterviewTracks();
+    });
+    els.interviewTrackList.appendChild(button);
+  });
+
+  const selected = (state.bootstrap.interviewTracks || []).find((item) => item.id === state.selectedInterviewTrack);
+  els.interviewTrackHint.textContent = selected?.description || "选择技术面或非技术面后，再进入邀请阶段。";
 }
 
 /* =====================================================================
@@ -195,9 +270,13 @@ function renderRoles() {
  * ================================================================ */
 
 async function generateMockResume() {
+  if (!ensureRoleSelection()) {
+    return;
+  }
   els.mockResumeBtn.disabled = true;
   try {
     const data = await apiPost("/api/resume/mock", buildResumePayload());
+    syncResolvedRole(data.role);
     els.resumeText.value = data.resumeText;
     state.resumeMode = "ai-generated";
     els.modeButtons.forEach((button) => {
@@ -211,6 +290,9 @@ async function generateMockResume() {
 }
 
 async function fetchInvitations() {
+  if (!ensureRoleSelection()) {
+    return;
+  }
   const payload = buildResumePayload();
   if (!payload.resumeText) {
     alert("先粘贴或生成一份简历。");
@@ -219,6 +301,7 @@ async function fetchInvitations() {
   els.toInvitationsBtn.disabled = true;
   try {
     const data = await apiPost("/api/invitations", payload);
+    syncResolvedRole(data.role);
     state.invitations = data;
     renderInvitations(data);
     switchView("invitation");
@@ -239,6 +322,14 @@ function renderInvitations(data) {
     .join("");
 
   els.invitationList.innerHTML = "";
+  if (data.comingSoon) {
+    els.trackPlaceholder.classList.remove("hidden");
+    els.trackPlaceholderTitle.textContent = data.placeholder?.title || "接口预留中";
+    els.trackPlaceholderDesc.textContent = data.placeholder?.description || "";
+    return;
+  }
+
+  els.trackPlaceholder.classList.add("hidden");
   data.invitations.forEach((interviewer) => {
     const card = document.createElement("article");
     card.className = "invitation-card";
@@ -645,6 +736,13 @@ function switchView(view) {
 function resetAll() {
   state.session = null;
   state.invitations = null;
+  state.selectedRoleMode = "preset";
+  state.customRoleTitle = "";
+  els.customRoleInput.value = "";
+  state.selectedRoleId = state.bootstrap?.roles?.[0]?.id ?? null;
+  state.selectedInterviewTrack = state.bootstrap?.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
+  renderRoles();
+  renderInterviewTracks();
   els.answerInput.value = "";
   stopAnswerTimer();
   stopEventTimer();
@@ -653,13 +751,46 @@ function resetAll() {
 }
 
 function buildResumePayload() {
+  const roleTitle = state.selectedRoleMode === "custom" ? state.customRoleTitle.trim() : "";
+  const roleId = state.selectedRoleMode === "random"
+    ? "random"
+    : state.selectedRoleMode === "custom"
+      ? "custom"
+      : state.selectedRoleId;
   return {
     themeKeyword: "",
-    roleId: state.selectedRoleId,
+    roleId,
+    roleTitle,
+    roleMode: state.selectedRoleMode,
+    interviewTrack: state.selectedInterviewTrack,
     difficulty: state.selectedDifficulty,
     resumeMode: state.resumeMode,
     resumeText: els.resumeText.value.trim(),
   };
+}
+
+function ensureRoleSelection() {
+  if (state.selectedRoleMode === "custom" && !state.customRoleTitle.trim()) {
+    alert("请输入自定义岗位名称。");
+    els.customRoleInput.focus();
+    return false;
+  }
+  return true;
+}
+
+function syncResolvedRole(role) {
+  if (!role) return;
+  state.selectedRoleId = role.id || state.selectedRoleId;
+  if (role.is_custom) {
+    state.selectedRoleMode = "custom";
+    state.customRoleTitle = role.title || "";
+    els.customRoleInput.value = state.customRoleTitle;
+  } else {
+    state.selectedRoleMode = "preset";
+    state.customRoleTitle = "";
+    els.customRoleInput.value = "";
+  }
+  renderRoles();
 }
 
 function speakerLabel(type) {

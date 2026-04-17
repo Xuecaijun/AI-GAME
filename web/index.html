@@ -42,6 +42,21 @@
           <div class="field">
             <span>应聘岗位</span>
             <div id="role-list" class="card-grid"></div>
+            <div id="custom-role-wrap" class="custom-role-wrap">
+              <input
+                id="custom-role-input"
+                type="text"
+                maxlength="40"
+                placeholder="输入任意岗位，例如：后端工程师、运营、教师、财务分析师"
+              />
+              <p class="muted">可选择预设岗位、随机岗位，或直接输入你想挑战的任意岗位。</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <span>面试类型</span>
+            <div id="interview-track-list" class="chips"></div>
+            <p id="interview-track-hint" class="muted">选择技术面或非技术面后，再进入邀请阶段。</p>
           </div>
 
           <div class="field">
@@ -83,6 +98,11 @@
           <p class="muted" id="invitation-blurb">正在分析……</p>
           <ul id="invitation-strengths" class="list"></ul>
           <ul id="invitation-risks" class="list warn"></ul>
+        </div>
+
+        <div id="track-placeholder" class="analysis-box hidden">
+          <h4 id="track-placeholder-title">接口预留中</h4>
+          <p id="track-placeholder-desc" class="muted"></p>
         </div>
 
         <div id="invitation-list" class="invitation-grid"></div>

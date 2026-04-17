@@ -197,6 +197,12 @@ textarea:focus {
   gap: 12px;
 }
 
+.custom-role-wrap {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .select-card {
   padding: 16px;
   border-radius: 22px;
@@ -223,6 +229,11 @@ textarea:focus {
   color: var(--accent);
 }
 
+.select-card.random-card small,
+.select-card.custom-card small {
+  color: var(--accent-2);
+}
+
 .start-row { margin-top: 20px; }
 
 /* ======================================================================
@@ -236,6 +247,7 @@ textarea:focus {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .analysis-box h4 { margin: 0 0 8px; }
+.analysis-box.hidden { display: none; }
 
 .list {
   margin: 6px 0 0;
