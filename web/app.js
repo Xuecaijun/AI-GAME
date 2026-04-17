@@ -10,6 +10,16 @@ const state = {
   meetingStartedAt: 0,
   meetingClockTimer: null,
   pendingEvent: null,
+  tts: {
+    enabled: true,
+    backendConfigured: null,
+    lastSpokenIdx: 0,
+    queue: [],
+    playing: false,
+    audio: null,
+    aborter: null,
+    utterance: null,
+  },
 };
 
 const dimensionLabels = {
@@ -107,7 +117,18 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   bindEvents();
+  await detectTTSMode();
   await loadBootstrap();
+}
+
+async function detectTTSMode() {
+  // Prefer backend TTS(v3) when configured; fallback to browser speechSynthesis.
+  try {
+    const data = await apiGet("/api/tts/status");
+    state.tts.backendConfigured = Boolean(data?.configured);
+  } catch (_) {
+    state.tts.backendConfigured = false;
+  }
 }
 
 function bindEvents() {
@@ -270,6 +291,7 @@ function renderInvitations(data) {
  * ================================================================ */
 
 async function startInterview(interviewerId) {
+  await detectTTSMode();
   const payload = { ...buildResumePayload(), interviewerId };
   try {
     const descriptor = await apiPost("/api/session/start", payload);
@@ -287,6 +309,7 @@ function applyDescriptor(descriptor) {
   renderRuntime(descriptor.runtime);
   renderMeetingHud(descriptor);
   renderTranscript(descriptor.transcript);
+  enqueueTTSFromTranscript(descriptor.transcript);
 
   stopAnswerTimer();
   stopEventTimer();
@@ -353,6 +376,158 @@ function renderTranscript(transcript) {
   els.tileInterviewer.classList.add("speaking");
   clearTimeout(state._speakingTimeout);
   state._speakingTimeout = setTimeout(() => els.tileInterviewer.classList.remove("speaking"), 2200);
+}
+
+function enqueueTTSFromTranscript(transcript) {
+  if (!state.tts.enabled) return;
+  if (!Array.isArray(transcript)) return;
+
+  const startIdx = Math.max(0, Number(state.tts.lastSpokenIdx || 0));
+  const newMessages = transcript.slice(startIdx);
+  state.tts.lastSpokenIdx = transcript.length;
+
+  newMessages.forEach((message) => {
+    if (!message || typeof message.text !== "string") return;
+    if (message.speaker !== "interviewer" && message.speaker !== "question") return;
+    const text = sanitizeTTSMessage(message.text);
+    if (!text) return;
+    state.tts.queue.push(text);
+  });
+
+  pumpTTSQueue();
+}
+
+function sanitizeTTSMessage(text) {
+  let clean = String(text || "").trim();
+  // Remove leading bracket tags in UI transcript, e.g.:
+  // [第 2 轮] xxx / [追问 1] xxx / [提示 1/3] xxx
+  clean = clean.replace(/^(?:\[[^\]]+\]\s*)+/u, "");
+  return clean.trim();
+}
+
+async function pumpTTSQueue() {
+  if (state.tts.playing) return;
+  if (!state.tts.queue.length) return;
+
+  state.tts.playing = true;
+  try {
+    while (state.tts.queue.length) {
+      const text = state.tts.queue.shift();
+      await playTTS(text);
+    }
+  } finally {
+    state.tts.playing = false;
+  }
+}
+
+function stopTTS() {
+  state.tts.queue = [];
+  state.tts.playing = false;
+  if (state.tts.aborter) {
+    try { state.tts.aborter.abort(); } catch (_) {}
+  }
+  state.tts.aborter = null;
+  if (state.tts.audio) {
+    try { state.tts.audio.pause(); } catch (_) {}
+    state.tts.audio = null;
+  }
+  if (state.tts.utterance && "speechSynthesis" in window) {
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    state.tts.utterance = null;
+  }
+}
+
+async function playTTS(text) {
+  if (state.tts.backendConfigured === true) {
+    try {
+      await playBackendTTS(text);
+      return;
+    } catch (_) {
+      // If backend call fails at runtime, fallback to browser TTS.
+      await playBrowserTTS(text);
+      return;
+    }
+  }
+  await playBrowserTTS(text);
+}
+
+async function playBackendTTS(text) {
+  stopCurrentAudioOnly();
+  const aborter = new AbortController();
+  state.tts.aborter = aborter;
+
+  const response = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+    signal: aborter.signal,
+  });
+
+  if (!response.ok) {
+    try { await response.text(); } catch (_) {}
+    throw new Error("backend tts failed");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+
+  const audio = new Audio(url);
+  state.tts.audio = audio;
+  audio.volume = 1.0;
+  audio.preload = "auto";
+
+  await new Promise((resolve, reject) => {
+    const done = () => resolve();
+    const fail = () => reject(new Error("audio playback failed"));
+    audio.addEventListener("ended", done, { once: true });
+    audio.addEventListener("error", fail, { once: true });
+    audio.play().catch(reject);
+  });
+
+  URL.revokeObjectURL(url);
+  if (state.tts.audio === audio) {
+    state.tts.audio = null;
+  }
+}
+
+async function playBrowserTTS(text) {
+  if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+    return;
+  }
+  stopCurrentAudioOnly();
+
+  await new Promise((resolve) => {
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      state.tts.utterance = utterance;
+      utterance.lang = "zh-CN";
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.onend = () => {
+        if (state.tts.utterance === utterance) state.tts.utterance = null;
+        resolve();
+      };
+      utterance.onerror = () => {
+        if (state.tts.utterance === utterance) state.tts.utterance = null;
+        resolve();
+      };
+      window.speechSynthesis.speak(utterance);
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+function stopCurrentAudioOnly() {
+  if (state.tts.audio) {
+    try { state.tts.audio.pause(); } catch (_) {}
+    state.tts.audio = null;
+  }
+  if (state.tts.utterance && "speechSynthesis" in window) {
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    state.tts.utterance = null;
+  }
 }
 
 async function submitAnswer() {
@@ -574,6 +749,7 @@ function finishMeeting(descriptor) {
   stopEventTimer();
   stopMeetingClock();
   closeEventModal();
+  stopTTS();
 
   const report = descriptor.report;
   const selected = descriptor.selected || state.session.selected;
@@ -649,6 +825,8 @@ function resetAll() {
   stopAnswerTimer();
   stopEventTimer();
   stopMeetingClock();
+  stopTTS();
+  state.tts.lastSpokenIdx = 0;
   switchView("resume");
 }
 

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 from backend.engine import GameEngine
+from backend.tts_client import TTSClientError, configured as tts_configured, synthesize_mp3_v3
 
 
 ROOT = Path(__file__).resolve().parent
@@ -25,7 +27,9 @@ def load_env() -> None:
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
         key, value = stripped.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
+        # Always honor project .env values so stale shell variables
+        # (including empty values) do not disable runtime features.
+        os.environ[key.strip()] = value.strip()
 
 
 class AppHandler(SimpleHTTPRequestHandler):
@@ -45,15 +49,23 @@ class AppHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/api/bootstrap":
-            self._send_json(engine.get_bootstrap())
-            return
-        if parsed.path == "/api/health":
-            self._send_json({"ok": True, "runtime": engine.ai_client.runtime_status()})
-            return
+        try:
+            if parsed.path == "/api/bootstrap":
+                self._send_json(engine.get_bootstrap())
+                return
+            if parsed.path == "/api/health":
+                self._send_json({"ok": True, "runtime": engine.ai_client.runtime_status()})
+                return
+            if parsed.path == "/api/tts/status":
+                self._send_json({"ok": True, "configured": bool(tts_configured())})
+                return
 
-        self.path = "/index.html" if parsed.path == "/" else parsed.path
-        return super().do_GET()
+            self.path = "/index.html" if parsed.path == "/" else parsed.path
+            return super().do_GET()
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": f"Server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -77,8 +89,21 @@ class AppHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/session/event":
                 self._send_json(engine.submit_event(payload))
                 return
+            if parsed.path == "/api/tts":
+                text = str(payload.get("text") or "").strip()
+                preview = text.replace("\n", " ")[:40]
+                started_at = time.perf_counter()
+                print(f"[TTS] request text_len={len(text)} preview={preview!r}")
+                audio = synthesize_mp3_v3(text)
+                elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+                print(f"[TTS] success bytes={len(audio)} elapsed_ms={elapsed_ms}")
+                self._send_bytes(audio, content_type="audio/mpeg")
+                return
             self._send_json({"error": "Not Found"}, status=HTTPStatus.NOT_FOUND)
         except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except TTSClientError as exc:
+            print(f"[TTS] failed error={exc}")
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": f"Server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -98,6 +123,14 @@ class AppHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_bytes(self, payload: bytes, content_type: str, status: int = HTTPStatus.OK) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(payload)
 
 
 def _json_default(value):
