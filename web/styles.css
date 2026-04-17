@@ -140,6 +140,13 @@ body {
 .field span { font-weight: 700; }
 .field.full { grid-column: 1 / -1; }
 
+.resume-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 input,
 textarea {
   width: 100%;
@@ -625,6 +632,7 @@ textarea:focus {
   flex-direction: column;
   gap: 10px;
 }
+.answer-dock.hidden { display: none; }
 
 .timer-row {
   display: flex;
@@ -696,6 +704,61 @@ textarea:focus {
   flex-direction: column;
   gap: 12px;
   animation: pop 180ms ease-out;
+}
+
+.code-modal-card {
+  width: min(760px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  background:
+    linear-gradient(180deg, rgba(108, 229, 255, 0.05), transparent),
+    rgba(5, 16, 28, 0.96);
+}
+
+.code-signature {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #bfefff;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  white-space: pre-wrap;
+}
+
+.code-examples {
+  display: grid;
+  gap: 10px;
+}
+
+.code-examples h4 {
+  margin: 0;
+  color: var(--text);
+}
+
+.code-example {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 8px;
+}
+
+.code-example b {
+  color: var(--accent);
+  margin-right: 8px;
+}
+
+.code-editor {
+  min-height: 320px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.code-actions {
+  justify-content: flex-end;
 }
 
 @keyframes pop {
@@ -859,6 +922,21 @@ textarea:focus {
   border-radius: 6px;
 }
 
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(5, 16, 28, 0.94);
+  border: 1px solid rgba(108, 229, 255, 0.24);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  z-index: 30;
+}
+.toast.hidden { display: none; }
+
 button:hover { transform: translateY(-1px); }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -871,7 +949,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .hero,
   .section-head,
   .start-row,
-  .fake-toolbar {
+  .fake-toolbar,
+  .resume-actions {
     flex-direction: column;
     align-items: flex-start;
   }

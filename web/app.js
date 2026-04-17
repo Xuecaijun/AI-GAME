@@ -45,9 +45,12 @@ const els = {
   difficultyList: el("difficulty-list"),
   roleList: el("role-list"),
   customRoleInput: el("custom-role-input"),
+  customRoleWrap: document.getElementById("custom-role-wrap"),
   interviewTrackList: el("interview-track-list"),
   interviewTrackHint: el("interview-track-hint"),
   resumeText: el("resume-text"),
+  resumeFile: el("resume-file"),
+  uploadResumeBtn: el("upload-resume-btn"),
   mockResumeBtn: el("mock-resume-btn"),
   toInvitationsBtn: el("to-invitations-btn"),
   modeButtons: Array.from(document.querySelectorAll(".mode-btn")),
@@ -83,9 +86,22 @@ const els = {
   drillIndicator: el("drill-indicator"),
   timerFill: el("timer-fill"),
   timerText: el("timer-text"),
+  answerDock: document.querySelector(".answer-dock"),
   answerInput: el("answer-input"),
   submitAnswerBtn: el("submit-answer-btn"),
   leaveBtn: el("leave-btn"),
+
+  // code modal
+  codeModal: el("code-modal"),
+  codeTitle: el("code-title"),
+  codeDifficulty: el("code-difficulty"),
+  codeDescription: el("code-description"),
+  codeSignature: el("code-signature"),
+  codeExamples: el("code-examples"),
+  codeAnswerInput: el("code-answer-input"),
+  codeSubmitBtn: el("code-submit-btn"),
+  codeTimerFill: el("code-timer-fill"),
+  codeTimerText: el("code-timer-text"),
 
   // event modal
   eventModal: el("event-modal"),
@@ -120,6 +136,7 @@ const els = {
   offerSignature: el("offer-signature"),
   rejectCard: el("reject-card"),
   rejectReason: el("reject-reason"),
+  toast: el("toast"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -149,9 +166,12 @@ function bindEvents() {
   });
 
   els.mockResumeBtn.addEventListener("click", generateMockResume);
+  els.uploadResumeBtn.addEventListener("click", () => els.resumeFile.click());
+  els.resumeFile.addEventListener("change", uploadResumeFile);
   els.toInvitationsBtn.addEventListener("click", fetchInvitations);
   els.backToResumeBtn.addEventListener("click", () => switchView("resume"));
   els.submitAnswerBtn.addEventListener("click", submitAnswer);
+  els.codeSubmitBtn.addEventListener("click", submitCodeAnswer);
   els.leaveBtn.addEventListener("click", leaveEarly);
   els.restartBtn.addEventListener("click", resetAll);
   els.eventTextSubmit.addEventListener("click", () => submitEvent({ text: els.eventTextInput.value }));
@@ -175,9 +195,13 @@ async function loadBootstrap() {
   try {
     const data = await apiGet("/api/bootstrap");
     state.bootstrap = data;
-    state.selectedRoleId = data.roles[0]?.id ?? null;
-    state.selectedRoleMode = "preset";
     state.selectedInterviewTrack = data.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
+    state.selectedRoleMode = "preset";
+    if (state.selectedInterviewTrack === "technical" && Array.isArray(data.technicalRoles) && data.technicalRoles.length) {
+      state.selectedRoleId = data.technicalRoles[0].id;
+    } else {
+      state.selectedRoleId = data.roles[0]?.id ?? null;
+    }
     renderBootstrap();
   } catch (err) {
     alert(err.message || "初始化失败");
@@ -216,23 +240,43 @@ function renderDifficulties() {
 
 function renderRoles() {
   els.roleList.innerHTML = "";
-  const randomCard = document.createElement("button");
-  randomCard.type = "button";
-  randomCard.className = `select-card random-card ${state.selectedRoleMode === "random" ? "active" : ""}`;
-  randomCard.innerHTML = `
-    <h4>随机岗位</h4>
-    <p>不指定岗位，由系统从当前岗位库中随机为你挑选一个。</p>
-    <small>系统任选 / 惊喜挑战 / 开局随机</small>
-  `;
-  randomCard.addEventListener("click", () => {
-    state.selectedRoleMode = "random";
-    state.customRoleTitle = "";
-    els.customRoleInput.value = "";
-    renderRoles();
-  });
-  els.roleList.appendChild(randomCard);
 
-  state.bootstrap.roles.forEach((role) => {
+  const isTechnical = state.selectedInterviewTrack === "technical";
+  const roleLibrary = isTechnical
+    ? (state.bootstrap.technicalRoles || state.bootstrap.roles)
+    : state.bootstrap.roles;
+
+  if (isTechnical) {
+    if (state.selectedRoleMode === "random" || state.selectedRoleMode === "custom") {
+      state.selectedRoleMode = "preset";
+      state.customRoleTitle = "";
+      els.customRoleInput.value = "";
+    }
+    if (!roleLibrary.some((role) => role.id === state.selectedRoleId)) {
+      state.selectedRoleId = roleLibrary[0]?.id ?? null;
+    }
+    if (els.customRoleWrap) els.customRoleWrap.style.display = "none";
+  } else {
+    if (els.customRoleWrap) els.customRoleWrap.style.display = "";
+
+    const randomCard = document.createElement("button");
+    randomCard.type = "button";
+    randomCard.className = `select-card random-card ${state.selectedRoleMode === "random" ? "active" : ""}`;
+    randomCard.innerHTML = `
+      <h4>随机岗位</h4>
+      <p>不指定岗位，由系统从当前岗位库中随机为你挑选一个。</p>
+      <small>系统任选 / 惊喜挑战 / 开局随机</small>
+    `;
+    randomCard.addEventListener("click", () => {
+      state.selectedRoleMode = "random";
+      state.customRoleTitle = "";
+      els.customRoleInput.value = "";
+      renderRoles();
+    });
+    els.roleList.appendChild(randomCard);
+  }
+
+  roleLibrary.forEach((role) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = `select-card ${state.selectedRoleMode === "preset" && role.id === state.selectedRoleId ? "active" : ""}`;
@@ -251,20 +295,22 @@ function renderRoles() {
     els.roleList.appendChild(card);
   });
 
-  const customCard = document.createElement("button");
-  customCard.type = "button";
-  customCard.className = `select-card custom-card ${state.selectedRoleMode === "custom" ? "active" : ""}`;
-  customCard.innerHTML = `
-    <h4>自定义岗位</h4>
-    <p>${escapeHtml(state.customRoleTitle || "输入任意岗位名称，系统会按该岗位生成简历与面试内容。")}</p>
-    <small>任意职业 / 自定义挑战 / 通用适配</small>
-  `;
-  customCard.addEventListener("click", () => {
-    state.selectedRoleMode = "custom";
-    renderRoles();
-    els.customRoleInput.focus();
-  });
-  els.roleList.appendChild(customCard);
+  if (!isTechnical) {
+    const customCard = document.createElement("button");
+    customCard.type = "button";
+    customCard.className = `select-card custom-card ${state.selectedRoleMode === "custom" ? "active" : ""}`;
+    customCard.innerHTML = `
+      <h4>自定义岗位</h4>
+      <p>${escapeHtml(state.customRoleTitle || "输入任意岗位名称，系统会按该岗位生成简历与面试内容。")}</p>
+      <small>任意职业 / 自定义挑战 / 通用适配</small>
+    `;
+    customCard.addEventListener("click", () => {
+      state.selectedRoleMode = "custom";
+      renderRoles();
+      els.customRoleInput.focus();
+    });
+    els.roleList.appendChild(customCard);
+  }
 }
 
 function renderInterviewTracks() {
@@ -278,6 +324,7 @@ function renderInterviewTracks() {
     button.addEventListener("click", () => {
       state.selectedInterviewTrack = track.id;
       renderInterviewTracks();
+      renderRoles();
     });
     els.interviewTrackList.appendChild(button);
   });
@@ -307,6 +354,30 @@ async function generateMockResume() {
     alert(err.message || "生成简历失败");
   } finally {
     els.mockResumeBtn.disabled = false;
+  }
+}
+
+async function uploadResumeFile(event) {
+  const [file] = event.target.files || [];
+  if (!file) return;
+
+  els.uploadResumeBtn.disabled = true;
+  try {
+    const base64 = await fileToDataUrl(file);
+    const data = await apiPost("/api/resume/upload", {
+      filename: file.name,
+      base64,
+    });
+    els.resumeText.value = data.resumeText || "";
+    state.resumeMode = "custom";
+    els.modeButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.mode === "custom");
+    });
+  } catch (err) {
+    alert(err.message || "上传简历失败");
+  } finally {
+    els.uploadResumeBtn.disabled = false;
+    els.resumeFile.value = "";
   }
 }
 
@@ -401,10 +472,14 @@ function applyDescriptor(descriptor) {
   renderMeetingHud(descriptor);
   renderTranscript(descriptor.transcript);
   enqueueTTSFromTranscript(descriptor.transcript);
+  if (descriptor.eventNote) {
+    showToast(descriptor.eventNote);
+  }
 
   stopAnswerTimer();
   stopEventTimer();
   closeEventModal();
+  closeCodeModal();
 
   if (descriptor.isFinal || descriptor.phase === "final") {
     finishMeeting(descriptor);
@@ -415,14 +490,24 @@ function applyDescriptor(descriptor) {
     openEventModal(descriptor.event);
     els.phaseIndicator.textContent = "随机事件";
     els.submitAnswerBtn.disabled = true;
+    toggleAnswerMode("normal");
     return;
   }
 
   // awaiting_answer
   els.phaseIndicator.textContent = descriptor.metrics.drillDepth > 0 ? `追问 ${descriptor.metrics.drillDepth}/3` : "作答中";
-  els.submitAnswerBtn.disabled = false;
-  els.answerInput.value = "";
-  els.answerInput.focus();
+  if (descriptor.questionType === "code" && descriptor.codeQuestion) {
+    toggleAnswerMode("code");
+    renderCodeQuestion(descriptor.codeQuestion);
+    els.codeAnswerInput.value = "";
+    els.codeSubmitBtn.disabled = false;
+    els.codeAnswerInput.focus();
+  } else {
+    toggleAnswerMode("normal");
+    els.submitAnswerBtn.disabled = false;
+    els.answerInput.value = "";
+    els.answerInput.focus();
+  }
   if (descriptor.timerMs) {
     startAnswerTimer(descriptor.timerMs);
   }
@@ -467,6 +552,35 @@ function renderTranscript(transcript) {
   els.tileInterviewer.classList.add("speaking");
   clearTimeout(state._speakingTimeout);
   state._speakingTimeout = setTimeout(() => els.tileInterviewer.classList.remove("speaking"), 2200);
+}
+
+function toggleAnswerMode(mode) {
+  const isCode = mode === "code";
+  els.answerDock.classList.toggle("hidden", isCode);
+  els.codeModal.classList.toggle("hidden", !isCode);
+  els.submitAnswerBtn.disabled = isCode;
+}
+
+function renderCodeQuestion(codeQuestion) {
+  els.codeTitle.textContent = codeQuestion.title || "编程题";
+  els.codeDifficulty.textContent = `难度：${formatCodeDifficulty(codeQuestion.difficulty)}`;
+  els.codeDescription.textContent = codeQuestion.description || "";
+  els.codeSignature.textContent = codeQuestion.signature || "";
+  els.codeExamples.innerHTML = "";
+  (codeQuestion.examples || []).forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "code-example";
+    card.innerHTML = `
+      <div><b>示例 ${index + 1}</b></div>
+      <div><b>输入</b>${escapeHtml(item.input || "")}</div>
+      <div><b>输出</b>${escapeHtml(item.output || "")}</div>
+    `;
+    els.codeExamples.appendChild(card);
+  });
+}
+
+function closeCodeModal() {
+  els.codeModal.classList.add("hidden");
 }
 
 function enqueueTTSFromTranscript(transcript) {
@@ -640,9 +754,29 @@ async function submitAnswer() {
   }
 }
 
+async function submitCodeAnswer() {
+  const answer = els.codeAnswerInput.value.trim();
+  if (!answer || !state.session) {
+    return;
+  }
+  stopAnswerTimer();
+  els.codeSubmitBtn.disabled = true;
+  try {
+    const descriptor = await apiPost("/api/session/answer", {
+      sessionId: state.session.sessionId,
+      answer,
+    });
+    applyDescriptor(descriptor);
+  } catch (err) {
+    alert(err.message || "提交失败");
+    els.codeSubmitBtn.disabled = false;
+  }
+}
+
 async function submitTimeout() {
   if (!state.session) return;
   els.submitAnswerBtn.disabled = true;
+  els.codeSubmitBtn.disabled = true;
   try {
     const descriptor = await apiPost("/api/session/timeout", {
       sessionId: state.session.sessionId,
@@ -651,6 +785,7 @@ async function submitTimeout() {
   } catch (err) {
     console.error(err);
     els.submitAnswerBtn.disabled = false;
+    els.codeSubmitBtn.disabled = false;
   }
 }
 
@@ -689,15 +824,13 @@ function startAnswerTimer(ms) {
   stopAnswerTimer();
   const start = performance.now();
   const total = ms;
-  els.timerFill.style.width = "100%";
+  paintAnswerTimer(100, "--", false);
   const tick = () => {
     const elapsed = performance.now() - start;
     const remaining = Math.max(0, total - elapsed);
     const pct = (remaining / total) * 100;
-    els.timerFill.style.width = `${pct}%`;
     const remainSec = Math.ceil(remaining / 1000);
-    els.timerText.textContent = `${remainSec}s`;
-    els.timerText.classList.toggle("urgent", remainSec <= 15);
+    paintAnswerTimer(pct, `${remainSec}s`, remainSec <= 15);
     if (remaining <= 0) {
       stopAnswerTimer();
       submitTimeout();
@@ -713,9 +846,17 @@ function stopAnswerTimer() {
     cancelAnimationFrame(state.answerTimer);
     state.answerTimer = null;
   }
-  els.timerFill.style.width = "0%";
-  els.timerText.textContent = "--";
-  els.timerText.classList.remove("urgent");
+  paintAnswerTimer(0, "--", false);
+}
+
+function paintAnswerTimer(pct, text, urgent) {
+  [els.timerFill, els.codeTimerFill].forEach((node) => {
+    node.style.width = `${pct}%`;
+  });
+  [els.timerText, els.codeTimerText].forEach((node) => {
+    node.textContent = text;
+    node.classList.toggle("urgent", urgent);
+  });
 }
 
 function startEventTimer(ms) {
@@ -840,6 +981,7 @@ function finishMeeting(descriptor) {
   stopEventTimer();
   stopMeetingClock();
   closeEventModal();
+  closeCodeModal();
   stopTTS();
 
   const report = descriptor.report;
@@ -915,8 +1057,12 @@ function resetAll() {
   state.selectedRoleMode = "preset";
   state.customRoleTitle = "";
   els.customRoleInput.value = "";
-  state.selectedRoleId = state.bootstrap?.roles?.[0]?.id ?? null;
   state.selectedInterviewTrack = state.bootstrap?.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
+  if (state.selectedInterviewTrack === "technical" && state.bootstrap?.technicalRoles?.length) {
+    state.selectedRoleId = state.bootstrap.technicalRoles[0].id;
+  } else {
+    state.selectedRoleId = state.bootstrap?.roles?.[0]?.id ?? null;
+  }
   renderRoles();
   renderInterviewTracks();
   els.answerInput.value = "";
@@ -924,22 +1070,32 @@ function resetAll() {
   stopEventTimer();
   stopMeetingClock();
   stopTTS();
+  closeCodeModal();
+  toggleAnswerMode("normal");
+  hideToast();
   state.tts.lastSpokenIdx = 0;
   switchView("resume");
 }
 
 function buildResumePayload() {
-  const roleTitle = state.selectedRoleMode === "custom" ? state.customRoleTitle.trim() : "";
-  const roleId = state.selectedRoleMode === "random"
-    ? "random"
+  const isTechnical = state.selectedInterviewTrack === "technical";
+  const roleTitle = isTechnical
+    ? ""
     : state.selectedRoleMode === "custom"
-      ? "custom"
-      : state.selectedRoleId;
+      ? state.customRoleTitle.trim()
+      : "";
+  const roleId = isTechnical
+    ? state.selectedRoleId
+    : state.selectedRoleMode === "random"
+      ? "random"
+      : state.selectedRoleMode === "custom"
+        ? "custom"
+        : state.selectedRoleId;
   return {
     themeKeyword: "",
     roleId,
     roleTitle,
-    roleMode: state.selectedRoleMode,
+    roleMode: isTechnical ? "preset" : state.selectedRoleMode,
     interviewTrack: state.selectedInterviewTrack,
     difficulty: state.selectedDifficulty,
     resumeMode: state.resumeMode,
@@ -948,6 +1104,9 @@ function buildResumePayload() {
 }
 
 function ensureRoleSelection() {
+  if (state.selectedInterviewTrack === "technical") {
+    return true;
+  }
   if (state.selectedRoleMode === "custom" && !state.customRoleTitle.trim()) {
     alert("请输入自定义岗位名称。");
     els.customRoleInput.focus();
@@ -977,9 +1136,18 @@ function speakerLabel(type) {
       interviewer: "面试官",
       question: "题目",
       candidate: "你",
-      feedback: "判定",
-      system: "旁白",
+      feedback: "反馈",
     }[type] || "系统"
+  );
+}
+
+function formatCodeDifficulty(value) {
+  return (
+    {
+      easy: "简单",
+      medium: "中等",
+      hard: "偏难",
+    }[value] || "中等"
   );
 }
 
@@ -996,6 +1164,32 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#39;",
   }[char]));
+}
+
+function showToast(message) {
+  const text = String(message || "").trim();
+  if (!text) return;
+  clearTimeout(state.toastTimer);
+  els.toast.textContent = text;
+  els.toast.classList.remove("hidden");
+  state.toastTimer = setTimeout(() => {
+    hideToast();
+  }, 2600);
+}
+
+function hideToast() {
+  clearTimeout(state.toastTimer);
+  els.toast.classList.add("hidden");
+  els.toast.textContent = "";
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("文件读取失败"));
+    reader.readAsDataURL(file);
+  });
 }
 
 async function apiGet(url) {

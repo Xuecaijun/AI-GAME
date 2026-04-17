@@ -7,11 +7,14 @@ from typing import Any
 from urllib import error, request
 
 from .prompts import (
+    build_code_judge_prompts,
+    build_code_question_prompts,
     build_hint_prompts,
     build_judge_prompts,
     build_offer_prompts,
     build_opening_prompts,
     build_question_prompts,
+    build_resume_profile_prompts,
     build_summary_prompts,
 )
 
@@ -38,6 +41,14 @@ class AIClient:
             return {"mode": "llm", "reason": f"已配置模型 {self.model}"}
         return {"mode": "mock", "reason": "未检测到 OPENAI_API_KEY / OPENAI_MODEL"}
 
+    def parse_resume(self, context: dict[str, Any]) -> dict[str, Any]:
+        system_prompt, user_prompt = build_resume_profile_prompts(
+            str(context.get("resumeText", "")),
+            context.get("role") or {},
+            str(context.get("themeKeyword", "")),
+        )
+        return self._chat_json(system_prompt, user_prompt, temperature=0.3)
+
     def generate_opening(self, context: dict[str, Any]) -> dict[str, Any]:
         system_prompt, user_prompt = build_opening_prompts(context)
         return self._chat_json(system_prompt, user_prompt, temperature=0.9)
@@ -53,6 +64,14 @@ class AIClient:
     def generate_hint(self, context: dict[str, Any]) -> dict[str, Any]:
         system_prompt, user_prompt = build_hint_prompts(context)
         return self._chat_json(system_prompt, user_prompt, temperature=0.7)
+
+    def generate_code_question(self, context: dict[str, Any]) -> dict[str, Any]:
+        system_prompt, user_prompt = build_code_question_prompts(context)
+        return self._chat_json(system_prompt, user_prompt, temperature=0.85)
+
+    def judge_code_answer(self, context: dict[str, Any], code: str) -> dict[str, Any]:
+        system_prompt, user_prompt = build_code_judge_prompts(context, code)
+        return self._chat_json(system_prompt, user_prompt, temperature=0.5)
 
     def summarize_session(self, context: dict[str, Any]) -> dict[str, Any]:
         system_prompt, user_prompt = build_summary_prompts(context)
