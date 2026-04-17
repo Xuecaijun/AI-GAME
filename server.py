@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import time
@@ -9,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from backend.engine import GameEngine
+from backend.resume_parser import extract_text
 from backend.tts_client import TTSClientError, configured as tts_configured, synthesize_mp3_v3
 
 
@@ -74,6 +76,9 @@ class AppHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/resume/mock":
                 self._send_json(engine.generate_mock_resume(payload))
                 return
+            if parsed.path == "/api/resume/upload":
+                self._send_json(_handle_resume_upload(payload))
+                return
             if parsed.path == "/api/invitations":
                 self._send_json(engine.build_invitations(payload))
                 return
@@ -137,6 +142,24 @@ def _json_default(value):
     if isinstance(value, set):
         return list(value)
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _handle_resume_upload(payload: dict) -> dict[str, str]:
+    filename = str(payload.get("filename") or "").strip()
+    raw_base64 = str(payload.get("base64") or "").strip()
+    if not filename or not raw_base64:
+        raise ValueError("请上传文件内容。")
+
+    if "," in raw_base64 and "base64" in raw_base64[:32].lower():
+        raw_base64 = raw_base64.split(",", 1)[1]
+
+    try:
+        raw_bytes = base64.b64decode(raw_base64, validate=True)
+    except ValueError as exc:
+        raise ValueError("上传内容不是合法的 base64 数据。") from exc
+
+    resume_text = extract_text(filename, raw_bytes)
+    return {"resumeText": resume_text}
 
 
 def main() -> None:

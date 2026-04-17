@@ -69,6 +69,11 @@
 
           <label class="field full">
             <span>简历内容</span>
+            <div class="resume-actions">
+              <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" hidden />
+              <button id="upload-resume-btn" type="button" class="ghost-btn">上传简历文件</button>
+              <p class="muted">支持 `.pdf`、`.docx`、`.txt`、`.md`，解析后会自动填入文本框。</p>
+            </div>
             <textarea
               id="resume-text"
               rows="11"
@@ -210,6 +215,33 @@
           </div>
         </footer>
 
+        <div id="code-modal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modal-card panel code-modal-card">
+            <div class="modal-head">
+              <div>
+                <p class="eyebrow">Code Challenge</p>
+                <h3 id="code-title">编程题</h3>
+              </div>
+              <button type="button" class="ghost-btn" disabled>返回会议</button>
+            </div>
+            <p id="code-difficulty" class="muted"></p>
+            <p id="code-description" class="event-intro"></p>
+            <pre id="code-signature" class="code-signature"></pre>
+            <div class="code-examples">
+              <h4>示例</h4>
+              <div id="code-examples"></div>
+            </div>
+            <div class="timer-row">
+              <div class="timer-bar"><div id="code-timer-fill"></div></div>
+              <span id="code-timer-text" class="timer-text">--</span>
+            </div>
+            <textarea id="code-answer-input" rows="13" class="code-editor" placeholder="在这里写代码，提交时会做 AI 静态点评。"></textarea>
+            <div class="main-actions code-actions">
+              <button id="code-submit-btn" class="primary-btn">提交代码</button>
+            </div>
+          </div>
+        </div>
+
         <!-- 随机事件弹窗 -->
         <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
           <div class="modal-card panel">
@@ -294,6 +326,8 @@
         </div>
       </section>
     </main>
+
+    <div id="toast" class="toast hidden"></div>
 
     <script src="./app.js"></script>
   </body>

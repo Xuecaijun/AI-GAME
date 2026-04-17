@@ -13,23 +13,25 @@ backend/
   engine.py              轮次状态机：ask / answer / judge / drill / hint / event / final
   events.py              随机事件引擎（掷骰 / 结算 / 一次性触发）
   interviewers/          面试官注册表 —— 新增面试官 = 新建一个 .py 文件
-    cold_judge.py
-    spark_hr.py
-    tactical_lead.py
-    blackbox_ai.py
+    gentle_senior.py
+    steady_engineer.py
+    strict_architect.py
   ai_client.py           LLM 调用封装
   prompts.py             各阶段 prompt 模板
   mock_content.py        岗位 / 难度 / AI 简历草稿生成
+  resume_parser.py       PDF / DOCX / TXT / MD 简历解析
 web/
   index.html             四步流程（简历 → 邀请 → 仿 TX 会议 → 结果）
   styles.css
   app.js
 server.py                本地 HTTP 服务入口
+requirements.txt         可选依赖（简历解析）
 ```
 
 ## 快速运行
 
 ```bash
+pip install -r requirements.txt
 python server.py
 ```
 
@@ -51,12 +53,14 @@ AI_GAME_FORCE_MOCK=0
 ## 核心玩法
 
 1. 粘贴或 AI 生成一份简历，选择难度和应聘岗位。
+   也可以直接上传 `.pdf` / `.docx` / `.txt` / `.md` 简历自动解析成文本。
 2. 系统分析简历，随机抽 3 位面试官发出邀请，玩家择一接受。
 3. 进入仿腾讯会议的面试间，按轮次作答：
    - 每题有倒计时，超时按放弃处理并计入最低分。
    - 答对有概率被深挖（最多 3 层，每层概率由面试官配置）。
    - 答错有概率获得提示再答（最多 3 次，否则本轮收束）。
    - 轮内 / 轮间会按概率触发随机事件（旁白 / 选择题 / 文字输入），部分事件会影响分数甚至直接终结面试。
+   - 技术面中间可能切到编程题，前端会打开代码弹窗，后端只做 AI 静态点评，不执行代码。
 4. 每轮结算出一个轮分（满分 100），多轮平均后与面试官的 `pass_score` 比较：达到则发出 Offer 文案，否则显示未录用卡片；六维评分仅用于结果页的复盘展示。
 
 ## 扩展：新增一位面试官
@@ -67,10 +71,11 @@ AI_GAME_FORCE_MOCK=0
 
 - `GET  /api/bootstrap` 返回岗位、难度、运行模式。
 - `POST /api/resume/mock` 生成一份可演示的 AI 简历。
+- `POST /api/resume/upload` 上传简历文件（JSON：`{ filename, base64 }`）。
 - `POST /api/invitations` 分析简历并抽样 3 位面试官。
 - `POST /api/session/start` 开始面试，返回首个"阶段描述符"。
 - `POST /api/session/answer` 提交回答，返回下一阶段描述符。
 - `POST /api/session/timeout` 当前题超时通知。
 - `POST /api/session/event` 玩家对随机事件的回应（选项 id 或文本）。
 
-阶段描述符统一结构：`{ phase, question?, timerMs?, event?, metrics, transcript, isFinal, report? }`。
+阶段描述符统一结构：`{ phase, question?, questionType?, codeQuestion?, eventNote?, timerMs?, event?, metrics, transcript, isFinal, report? }`。

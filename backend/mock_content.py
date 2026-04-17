@@ -46,6 +46,355 @@ ROLE_LIBRARY = [
     },
 ]
 
+TECHNICAL_ROLES = [
+    {
+        "id": "frontend-engineer",
+        "title": "前端工程师",
+        "summary": "负责 Web 前端界面、交互与状态管理，关注性能与工程化。",
+        "keywords": ["React", "TypeScript", "状态管理", "性能优化", "组件设计", "可视化"],
+        "opening_questions": [
+            "先简单介绍一下你自己，以及你最近在做的前端项目。",
+            "挑一个你做过的前端项目，讲讲里面最棘手的一个技术点。",
+        ],
+        "resume_lines": [
+            "负责业务前端模块的架构与迭代，使用 React + TypeScript 推动组件沉淀与性能优化。",
+            "参与前端工程化建设，规范构建流程、单测接入和线上监控。",
+            "与后端、设计协作打磨复杂交互，关注首屏、交互反馈与线上异常指标。",
+        ],
+    },
+    {
+        "id": "backend-engineer",
+        "title": "后端工程师",
+        "summary": "负责服务端业务逻辑、数据库与接口设计，关注稳定性与性能。",
+        "keywords": ["Java", "Go", "MySQL", "Redis", "分布式", "API 设计"],
+        "opening_questions": [
+            "先介绍一下你自己，以及你主要用什么后端技术栈。",
+            "讲一个你经手过的服务端项目，重点说说你负责的那块设计。",
+        ],
+        "resume_lines": [
+            "负责业务后端核心服务的设计与开发，使用 Java/Go 编写高并发接口。",
+            "参与数据库表结构设计、索引优化和慢查询治理，保障线上稳定。",
+            "协作推进缓存、消息队列接入，关注服务可用性和故障复盘。",
+        ],
+    },
+    {
+        "id": "algorithm-engineer",
+        "title": "算法工程师",
+        "summary": "负责机器学习/深度学习模型的训练、评估与落地。",
+        "keywords": ["机器学习", "深度学习", "PyTorch", "特征工程", "模型评估", "Python"],
+        "opening_questions": [
+            "先自我介绍一下，最近在做什么方向的算法工作。",
+            "挑一个你自己从头做下来的模型项目，说说你是怎么验证效果的。",
+        ],
+        "resume_lines": [
+            "负责业务场景下的模型训练与评估，使用 PyTorch 完成从数据到上线的闭环。",
+            "参与特征工程、样本构造和离线指标监控，持续迭代模型表现。",
+            "和工程团队协作推动模型服务化部署，关注线上效果与回流数据。",
+        ],
+    },
+    {
+        "id": "fullstack-engineer",
+        "title": "全栈工程师",
+        "summary": "前后端一起做，关注从用户界面到数据链路的完整交付。",
+        "keywords": ["Node.js", "React", "数据库", "接口设计", "工程化", "DevOps"],
+        "opening_questions": [
+            "先做个自我介绍，说说你做过的项目里前后端各自占比多少。",
+            "如果让你从零搭一个小工具，你会怎么规划前后端分工和技术选型？",
+        ],
+        "resume_lines": [
+            "独立负责中小型项目的前后端开发，覆盖需求拆解、接口设计、UI 实现与部署。",
+            "使用 Node.js / React 搭建主要业务模块，关注开发效率与上线稳定性。",
+            "参与基础设施和自动化流程建设，推动小团队工程规范落地。",
+        ],
+    },
+    {
+        "id": "ai-application-engineer",
+        "title": "AI 应用工程师",
+        "summary": "负责大模型应用的接入、Prompt 编排、结构化输出与业务集成。",
+        "keywords": ["Python", "Prompt", "RAG", "LLM", "工作流", "评估"],
+        "opening_questions": [
+            "先介绍下你自己，以及你最近在做的大模型相关工作。",
+            "讲一个你把 LLM 真正接进产品的案例，重点聊聊你踩过的坑。",
+        ],
+        "resume_lines": [
+            "负责大模型应用的 Prompt 设计、链路编排与结构化输出适配。",
+            "参与 RAG 检索方案、向量库选型与离线评估流程的搭建。",
+            "和前后端协作推动 AI 能力的产品化落地，持续关注稳定性与成本。",
+        ],
+    },
+    {
+        "id": "client-engineer",
+        "title": "客户端工程师",
+        "summary": "负责 iOS / Android 客户端的开发、性能与稳定性。",
+        "keywords": ["iOS", "Android", "Swift", "Kotlin", "性能优化", "稳定性"],
+        "opening_questions": [
+            "简单介绍下你自己，以及你主要做哪个端。",
+            "挑一个你在客户端做过的优化或重构，说说背景和效果。",
+        ],
+        "resume_lines": [
+            "负责移动端业务模块开发，关注启动速度、流畅度和崩溃率指标。",
+            "参与架构分层、组件化拆分和工程化改造，提升团队协作效率。",
+            "协同定位和修复线上疑难问题，沉淀稳定性治理经验。",
+        ],
+    },
+    {
+        "id": "test-engineer",
+        "title": "测试开发工程师",
+        "summary": "负责自动化测试、质量保障与工程流程治理。",
+        "keywords": ["自动化测试", "Python", "接口测试", "回归", "CI", "质量保障"],
+        "opening_questions": [
+            "先自我介绍，聊聊你目前主要的测试技术栈。",
+            "讲一个你主导搭建或改造过的自动化测试流程。",
+        ],
+        "resume_lines": [
+            "负责业务的接口自动化、UI 自动化测试用例设计与维护。",
+            "参与测试平台与 CI 流程建设，推动用例覆盖率与回归效率提升。",
+            "协同开发定位缺陷，关注上线质量和线上问题复盘。",
+        ],
+    },
+]
+
+TECH_QUESTION_BANK = {
+    "frontend-engineer": [
+        {
+            "topic": "React 渲染机制",
+            "q": "聊一下 React 里 setState 之后组件为什么不会立刻同步更新，批量更新和调度大概是怎么回事？",
+            "hint_directions": ["状态更新是同步还是异步可见", "批量更新为什么存在", "调度和渲染阶段怎么区分"],
+            "difficulty": "medium",
+            "related_skills": ["React", "状态管理"],
+        },
+        {
+            "topic": "浏览器缓存",
+            "q": "强缓存和协商缓存分别怎么工作？浏览器拿到 304 之前大概经历了什么判断过程？",
+            "hint_directions": ["Cache-Control 和 Expires", "ETag 和 Last-Modified", "什么时候直接命中本地缓存"],
+            "difficulty": "easy",
+            "related_skills": ["性能优化"],
+        },
+        {
+            "topic": "前端性能优化",
+            "q": "一个页面首屏慢，你一般会从加载链路、资源体积和渲染阶段怎么拆问题？",
+            "hint_directions": ["网络请求和资源加载", "打包体积与代码分割", "渲染阻塞和长任务"],
+            "difficulty": "medium",
+            "related_skills": ["React", "性能优化", "可视化"],
+        },
+        {
+            "topic": "Diff 算法",
+            "q": "React/Vue 这类框架做虚拟 DOM diff 时，为什么 key 很重要？key 用错会带来什么具体问题？",
+            "hint_directions": ["节点复用怎么发生", "列表重排时会怎样", "状态错位为什么会出现"],
+            "difficulty": "medium",
+            "related_skills": ["React", "组件设计"],
+        },
+    ],
+    "backend-engineer": [
+        {
+            "topic": "MySQL 索引",
+            "q": "说一下 InnoDB 里的聚簇索引和二级索引结构差别，什么情况下会发生回表？",
+            "hint_directions": ["叶子节点分别存什么", "主键索引和普通索引的区别", "覆盖索引为什么能避免回表"],
+            "difficulty": "medium",
+            "related_skills": ["MySQL", "数据库"],
+        },
+        {
+            "topic": "Redis 持久化",
+            "q": "Redis 的 RDB 和 AOF 各自适合什么场景？如果你只能选一种，判断依据会是什么？",
+            "hint_directions": ["恢复速度和数据丢失窗口", "文件体积和写放大", "混合持久化解决什么问题"],
+            "difficulty": "medium",
+            "related_skills": ["Redis"],
+        },
+        {
+            "topic": "事务隔离",
+            "q": "MySQL 常见事务隔离级别分别解决了什么问题，又还会留下哪些并发异常？",
+            "hint_directions": ["脏读 不可重复读 幻读", "Read Committed 和 Repeatable Read 的差别", "MVCC 在这里起什么作用"],
+            "difficulty": "hard",
+            "related_skills": ["MySQL", "数据库"],
+        },
+        {
+            "topic": "接口幂等",
+            "q": "下单或支付回调这类接口为什么必须做幂等？常见实现手段有哪些，各自风险点是什么？",
+            "hint_directions": ["重复请求的来源", "唯一键 状态机 去重表", "并发下怎么避免重复执行"],
+            "difficulty": "medium",
+            "related_skills": ["API 设计", "分布式", "Java", "Go"],
+        },
+    ],
+    "algorithm-engineer": [
+        {
+            "topic": "过拟合",
+            "q": "模型训练里为什么会过拟合？你会从数据、模型复杂度和训练策略三个层面怎么缓解？",
+            "hint_directions": ["训练集和验证集表现差异", "正则化与数据增强", "早停和模型容量控制"],
+            "difficulty": "medium",
+            "related_skills": ["机器学习", "深度学习", "模型评估"],
+        },
+        {
+            "topic": "评估指标",
+            "q": "分类问题里 precision、recall、F1 分别关注什么？什么业务场景会更偏向 recall？",
+            "hint_directions": ["TP FP FN 分别影响什么", "漏判和误判代价", "指标之间为什么会互相拉扯"],
+            "difficulty": "easy",
+            "related_skills": ["模型评估", "机器学习"],
+        },
+        {
+            "topic": "梯度下降",
+            "q": "梯度下降为什么能工作？学习率过大或过小分别会出现什么现象？",
+            "hint_directions": ["沿梯度反方向更新", "震荡和不收敛", "收敛过慢和局部最优"],
+            "difficulty": "medium",
+            "related_skills": ["深度学习", "机器学习", "Python"],
+        },
+        {
+            "topic": "特征工程",
+            "q": "做传统机器学习时，为什么特征工程往往直接决定上限？你会怎么判断一个特征值不值得留下？",
+            "hint_directions": ["业务含义和可解释性", "信息增益或相关性", "线上可获取性和稳定性"],
+            "difficulty": "medium",
+            "related_skills": ["特征工程", "机器学习", "Python"],
+        },
+    ],
+    "fullstack-engineer": [
+        {
+            "topic": "认证与鉴权",
+            "q": "Session 和 JWT 分别适合什么场景？如果让你给一个中后台系统做登录态，你会怎么选？",
+            "hint_directions": ["状态存在哪", "扩展性和失效控制", "安全风险和刷新机制"],
+            "difficulty": "medium",
+            "related_skills": ["Node.js", "接口设计"],
+        },
+        {
+            "topic": "跨域",
+            "q": "浏览器为什么会有跨域限制？一次带预检的 CORS 请求大概会经历哪些步骤？",
+            "hint_directions": ["同源策略保护什么", "OPTIONS 预检为什么出现", "哪些请求头会触发预检"],
+            "difficulty": "medium",
+            "related_skills": ["React", "Node.js"],
+        },
+        {
+            "topic": "系统拆层",
+            "q": "一个小型全栈项目从前端到后端通常会怎么分层？哪些逻辑适合放前端，哪些必须放服务端？",
+            "hint_directions": ["表现层和业务层", "权限与数据可信边界", "可复用逻辑和安全逻辑怎么分"],
+            "difficulty": "medium",
+            "related_skills": ["React", "Node.js", "数据库", "接口设计"],
+        },
+        {
+            "topic": "部署发布",
+            "q": "为什么很多 Web 项目上线都要做灰度发布？它和直接全量发布相比到底降低了什么风险？",
+            "hint_directions": ["新版本风险怎么暴露", "流量比例怎么控制", "回滚成本为什么更低"],
+            "difficulty": "easy",
+            "related_skills": ["DevOps", "工程化"],
+        },
+    ],
+    "ai-application-engineer": [
+        {
+            "topic": "RAG",
+            "q": "RAG 为什么不只是“把知识库接给大模型”这么简单？一个基础 RAG 链路通常包含哪些关键阶段？",
+            "hint_directions": ["切片 向量化 检索 重排 生成", "召回质量为什么关键", "上下文污染会带来什么问题"],
+            "difficulty": "medium",
+            "related_skills": ["RAG", "LLM", "工作流"],
+        },
+        {
+            "topic": "Prompt 稳定性",
+            "q": "同一个 Prompt 在不同时间输出不稳定，可能由哪些因素导致？你会怎么提高稳定性？",
+            "hint_directions": ["模型温度和随机性", "指令边界是否清楚", "结构化输出和 few-shot 怎么帮助稳定"],
+            "difficulty": "medium",
+            "related_skills": ["Prompt", "LLM", "评估"],
+        },
+        {
+            "topic": "幻觉问题",
+            "q": "大模型为什么会产生幻觉？工程上通常怎么减轻，而不是只靠一句“不要胡编”？",
+            "hint_directions": ["训练目标和概率生成", "检索增强与约束输出", "拒答策略和校验环节"],
+            "difficulty": "medium",
+            "related_skills": ["LLM", "RAG", "评估"],
+        },
+        {
+            "topic": "成本与延迟",
+            "q": "做 AI 应用时，为什么成本、延迟和效果经常互相拉扯？你会从哪些地方做取舍？",
+            "hint_directions": ["模型大小与调用价格", "上下文长度和响应时间", "缓存 降级 批处理"],
+            "difficulty": "medium",
+            "related_skills": ["LLM", "工作流", "评估"],
+        },
+    ],
+    "client-engineer": [
+        {
+            "topic": "内存泄漏",
+            "q": "移动端为什么会出现内存泄漏？你通常会先怀疑哪些对象或引用关系？",
+            "hint_directions": ["生命周期和长引用", "单例 回调 闭包", "Activity/View/Controller 持有链"],
+            "difficulty": "medium",
+            "related_skills": ["iOS", "Android", "稳定性"],
+        },
+        {
+            "topic": "卡顿分析",
+            "q": "一个客户端页面明显掉帧，你会从主线程、渲染和资源加载怎么排查？",
+            "hint_directions": ["主线程是否被重活阻塞", "布局 绘制 过度渲染", "图片和 I/O 的影响"],
+            "difficulty": "medium",
+            "related_skills": ["iOS", "Android", "性能优化"],
+        },
+        {
+            "topic": "启动优化",
+            "q": "App 启动慢通常拆成哪几个阶段看？冷启动和热启动的优化思路有什么不同？",
+            "hint_directions": ["进程启动和初始化", "首屏可见前做了什么", "延迟初始化为什么有效"],
+            "difficulty": "medium",
+            "related_skills": ["性能优化", "iOS", "Android"],
+        },
+        {
+            "topic": "崩溃治理",
+            "q": "线上崩溃率治理一般不是只修一个 bug 就完了，你觉得完整闭环应该包含哪些环节？",
+            "hint_directions": ["采集 聚类 排查 修复 复盘", "版本和机型维度分析", "如何避免同类问题再出现"],
+            "difficulty": "easy",
+            "related_skills": ["稳定性", "iOS", "Android"],
+        },
+    ],
+    "test-engineer": [
+        {
+            "topic": "测试分层",
+            "q": "单元测试、接口测试、UI 自动化测试分别更适合兜什么风险？为什么不能只押一种？",
+            "hint_directions": ["反馈速度和维护成本", "覆盖范围和稳定性", "测试金字塔为什么存在"],
+            "difficulty": "medium",
+            "related_skills": ["自动化测试", "接口测试", "质量保障"],
+        },
+        {
+            "topic": "回归策略",
+            "q": "版本临发前为什么不是把所有用例全跑一遍就最好？你会怎么设计有优先级的回归策略？",
+            "hint_directions": ["时间成本和收益", "核心链路 高风险变更", "冒烟 回归 全量之间怎么取舍"],
+            "difficulty": "medium",
+            "related_skills": ["回归", "质量保障", "CI"],
+        },
+        {
+            "topic": "缺陷定位",
+            "q": "同一个线上问题，测试和开发常常都说不是自己的锅。你会怎样构造证据让定位更快收敛？",
+            "hint_directions": ["复现步骤和环境信息", "日志 抓包 trace", "最小化复现和边界条件"],
+            "difficulty": "medium",
+            "related_skills": ["自动化测试", "接口测试", "质量保障"],
+        },
+        {
+            "topic": "自动化价值",
+            "q": "什么样的场景适合做自动化测试，什么样的场景做了反而维护成本会很高？",
+            "hint_directions": ["稳定规则和高频回归", "页面变化快是否适合 UI 自动化", "投入产出比怎么判断"],
+            "difficulty": "easy",
+            "related_skills": ["自动化测试", "回归", "质量保障"],
+        },
+    ],
+}
+
+WORKPLACE_QUESTION_BANK = [
+    {
+        "topic": "到岗时间",
+        "q": "如果这边流程推进顺利，你最快多久可以到岗？",
+        "hint_directions": ["先给明确时间", "再说明当前状态或交接安排", "避免只说尽快"],
+    },
+    {
+        "topic": "工作生活冲突",
+        "q": "如果项目高峰期和你的个人生活安排发生冲突，你一般会怎么处理？",
+        "hint_directions": ["先说原则", "再说沟通和优先级判断", "补一个现实边界"],
+    },
+    {
+        "topic": "加班沟通",
+        "q": "如果临时出现加班需求，但你原本已经有安排了，你会怎么和团队沟通？",
+        "hint_directions": ["先表态是否能支持", "再说怎么同步风险和边界", "体现沟通而不是硬扛"],
+    },
+    {
+        "topic": "岗位预期",
+        "q": "如果入职后发现实际工作内容和你原本理解的不完全一样，你会怎么处理？",
+        "hint_directions": ["先确认差异", "再沟通预期", "最后说自己的适应策略"],
+    },
+    {
+        "topic": "工作诉求",
+        "q": "你选工作时通常更看重什么，比如薪资、成长、团队氛围，你会怎么权衡？",
+        "hint_directions": ["先给排序", "再解释为什么", "别回答得过于模板化"],
+    },
+]
+
 DIFFICULTIES = {
     "easy": {
         "label": "Easy",
@@ -88,6 +437,128 @@ DIFFICULTIES = {
         "score_multiplier": 1.3,
     },
 }
+
+CODE_QUESTION_BANK = [
+    {
+        "id": "two-sum",
+        "title": "两数之和",
+        "difficulty": "easy",
+        "topic": "数组 / 哈希",
+        "description": (
+            "给定一个整数数组 nums 和一个目标值 target，返回数组中两个元素的下标，使它们相加等于 target。\n"
+            "假设每组输入只有一个答案，同一元素不能使用两次。请尽量给出比 O(n^2) 更好的做法。"
+        ),
+        "signature": "def two_sum(nums: list[int], target: int) -> list[int]:",
+        "examples": [
+            {"input": "nums=[2,7,11,15], target=9", "output": "[0,1]"},
+            {"input": "nums=[3,2,4], target=6", "output": "[1,2]"},
+        ],
+    },
+    {
+        "id": "reverse-linked-list",
+        "title": "反转链表",
+        "difficulty": "easy",
+        "topic": "链表",
+        "description": (
+            "给你一个单链表的头结点 head，将其反转，并返回反转后的头结点。\n"
+            "可以给出迭代或递归任一写法，解释一下你选这种写法的理由。"
+        ),
+        "signature": "def reverse_list(head: ListNode | None) -> ListNode | None:",
+        "examples": [
+            {"input": "head: 1->2->3->4->5", "output": "5->4->3->2->1"},
+            {"input": "head: 1->2", "output": "2->1"},
+        ],
+    },
+    {
+        "id": "valid-parentheses",
+        "title": "有效的括号",
+        "difficulty": "easy",
+        "topic": "栈",
+        "description": (
+            "给定一个只包括 '()'、'[]'、'{}' 的字符串 s，判断字符串是否有效。\n"
+            "有效字符串需满足：左括号必须用相同类型的右括号闭合，且以正确的顺序闭合。"
+        ),
+        "signature": "def is_valid(s: str) -> bool:",
+        "examples": [
+            {"input": 's="()[]{}"', "output": "True"},
+            {"input": 's="(]"', "output": "False"},
+        ],
+    },
+    {
+        "id": "lru-cache",
+        "title": "LRU 缓存",
+        "difficulty": "medium",
+        "topic": "哈希 / 双向链表",
+        "description": (
+            "实现一个 LRU 缓存类：支持 get(key) 与 put(key, value)，容量固定 capacity。\n"
+            "要求 get / put 的平均时间复杂度为 O(1)，当缓存满时淘汰最久未使用的键。"
+        ),
+        "signature": "class LRUCache:\n    def __init__(self, capacity: int): ...\n    def get(self, key: int) -> int: ...\n    def put(self, key: int, value: int) -> None: ...",
+        "examples": [
+            {"input": "capacity=2, put(1,1) put(2,2) get(1) put(3,3) get(2)", "output": "1, -1"},
+        ],
+    },
+    {
+        "id": "longest-substring",
+        "title": "最长无重复字符子串",
+        "difficulty": "medium",
+        "topic": "滑动窗口",
+        "description": (
+            "给定一个字符串 s，找到其中不含有重复字符的最长子串的长度。\n"
+            "请说明你的时间复杂度。"
+        ),
+        "signature": "def length_of_longest_substring(s: str) -> int:",
+        "examples": [
+            {"input": 's="abcabcbb"', "output": "3"},
+            {"input": 's="bbbbb"', "output": "1"},
+        ],
+    },
+    {
+        "id": "merge-intervals",
+        "title": "合并区间",
+        "difficulty": "medium",
+        "topic": "排序 / 数组",
+        "description": (
+            "给出一个区间的集合，合并所有重叠的区间，并返回合并后的结果。\n"
+            "区间以 [start, end] 形式给出。"
+        ),
+        "signature": "def merge(intervals: list[list[int]]) -> list[list[int]]:",
+        "examples": [
+            {"input": "[[1,3],[2,6],[8,10],[15,18]]", "output": "[[1,6],[8,10],[15,18]]"},
+        ],
+    },
+    {
+        "id": "token-bucket",
+        "title": "简易令牌桶限流器",
+        "difficulty": "medium",
+        "topic": "限流 / 并发",
+        "description": (
+            "实现一个令牌桶限流器：每秒向桶中放入 rate 个令牌（桶容量为 capacity，满了不再加）。\n"
+            "调用 allow() 时，如果桶里有令牌则扣 1 并返回 True，否则返回 False。\n"
+            "可以用单线程即可，说明你如何处理时间精度。"
+        ),
+        "signature": "class TokenBucket:\n    def __init__(self, rate: float, capacity: int): ...\n    def allow(self) -> bool: ...",
+        "examples": [
+            {"input": "rate=5, capacity=5, 每秒调用 10 次", "output": "前 5 次 True，后 5 次 False"},
+        ],
+    },
+    {
+        "id": "binary-search",
+        "title": "二分查找（左边界）",
+        "difficulty": "easy",
+        "topic": "二分",
+        "description": (
+            "给定一个升序整数数组 nums 和目标值 target，返回 target 第一次出现的下标；\n"
+            "若不存在，返回应插入的位置（保持有序）。"
+        ),
+        "signature": "def search_left(nums: list[int], target: int) -> int:",
+        "examples": [
+            {"input": "nums=[1,3,5,5,7], target=5", "output": "2"},
+            {"input": "nums=[1,3,5,5,7], target=4", "output": "2"},
+        ],
+    },
+]
+
 
 COMMON_SKILLS = [
     "Python",
@@ -224,13 +695,38 @@ def get_role(role_id: str) -> dict:
     return next((item for item in ROLE_LIBRARY if item["id"] == role_id), ROLE_LIBRARY[0])
 
 
+def get_technical_role(role_id: str = "") -> dict:
+    """技术面岗位解析：只从 TECHNICAL_ROLES 中选，找不到回退首位。"""
+
+    normalized = (role_id or "").strip()
+    if normalized == "random" or not normalized:
+        return copy_role(random.choice(TECHNICAL_ROLES))
+    matched = next((item for item in TECHNICAL_ROLES if item["id"] == normalized), None)
+    if matched:
+        return copy_role(matched)
+    return copy_role(TECHNICAL_ROLES[0])
+
+
 def get_difficulty(difficulty_id: str) -> dict:
     return DIFFICULTIES.get(difficulty_id, DIFFICULTIES["normal"])
 
 
-def resolve_role(role_id: str = "", role_title: str = "") -> dict:
+def get_tech_questions(role_id: str) -> list[dict]:
+    bank = TECH_QUESTION_BANK.get(role_id, [])
+    return [dict(item) for item in bank]
+
+
+def get_workplace_questions() -> list[dict]:
+    return [dict(item) for item in WORKPLACE_QUESTION_BANK]
+
+
+def resolve_role(role_id: str = "", role_title: str = "", interview_track: str = "") -> dict:
     normalized_id = (role_id or "").strip()
     normalized_title = (role_title or "").strip()
+
+    # 技术面强制走计算机领域岗位，忽略自定义/随机/非技术岗位
+    if interview_track == "technical":
+        return get_technical_role(normalized_id)
 
     if normalized_title:
         return build_custom_role(normalized_title, role_id=normalized_id or "custom-role")
