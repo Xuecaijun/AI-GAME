@@ -45,37 +45,6 @@ ROLE_LIBRARY = [
     },
 ]
 
-INTERVIEWERS = [
-    {
-        "id": "cold-judge",
-        "name": "冷面审判官",
-        "style": "强压迫、抓漏洞、语气克制",
-        "tone": "他像在做压力测试，不接受泛泛而谈的答案。",
-        "opening_line": "欢迎开始。你有四次机会证明，这份履历不是包装。",
-    },
-    {
-        "id": "spark-hr",
-        "name": "元气 HR",
-        "style": "看似友好，但擅长温柔拆解回答",
-        "tone": "她会用轻松语气问出很难圆的问题。",
-        "opening_line": "放轻松，我们像聊天一样来，但我会听得很细。",
-    },
-    {
-        "id": "tactical-lead",
-        "name": "战术分析师",
-        "style": "重逻辑、重拆解、重方法论",
-        "tone": "他更看重你的思考结构和复盘能力。",
-        "opening_line": "我不关心漂亮话，我只看你的判断过程和取舍。",
-    },
-    {
-        "id": "blackbox-ai",
-        "name": "黑盒 AI 观察者",
-        "style": "机械、冷幽默、偶尔哲学发问",
-        "tone": "它像一个会判定可信度的系统。",
-        "opening_line": "候选人已录入。接下来我将验证你的叙述完整性。",
-    },
-]
-
 DIFFICULTIES = {
     "easy": {
         "label": "Easy",
@@ -83,6 +52,7 @@ DIFFICULTIES = {
         "resume_gap": "low",
         "starting_stress": 18,
         "max_turns": 4,
+        "score_multiplier": 0.85,
     },
     "normal": {
         "label": "Normal",
@@ -90,27 +60,31 @@ DIFFICULTIES = {
         "resume_gap": "mid",
         "starting_stress": 24,
         "max_turns": 4,
+        "score_multiplier": 1.0,
     },
     "hard": {
         "label": "Hard",
         "description": "简历会埋下明显风险点，追问更密集。",
         "resume_gap": "high",
         "starting_stress": 32,
-        "max_turns": 4,
+        "max_turns": 5,
+        "score_multiplier": 1.1,
     },
     "expert": {
         "label": "Expert",
         "description": "回答一旦不自洽，就会被连续施压。",
         "resume_gap": "very_high",
         "starting_stress": 40,
-        "max_turns": 4,
+        "max_turns": 5,
+        "score_multiplier": 1.2,
     },
     "master": {
         "label": "Master",
         "description": "人设反差大，高压追问，适合比赛展示。",
         "resume_gap": "extreme",
         "starting_stress": 48,
-        "max_turns": 4,
+        "max_turns": 6,
+        "score_multiplier": 1.3,
     },
 }
 
@@ -132,10 +106,6 @@ COMMON_SKILLS = [
 
 def get_role(role_id: str) -> dict:
     return next((item for item in ROLE_LIBRARY if item["id"] == role_id), ROLE_LIBRARY[0])
-
-
-def get_interviewer(interviewer_id: str) -> dict:
-    return next((item for item in INTERVIEWERS if item["id"] == interviewer_id), INTERVIEWERS[0])
 
 
 def get_difficulty(difficulty_id: str) -> dict:

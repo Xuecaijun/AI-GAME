@@ -1,17 +1,30 @@
-# 终面：AI面试官
+# ShowMeTheOffer · 终面：AI面试官
 
-一个适合 AI 游戏比赛冲刺的网页 Demo。它把“简历解析 + 动态追问 + 压力评分 + 结果报告”串成了一个可演示闭环，并且内置了两套运行模式：
+一个 AI 面试网页小游戏：简历 → 面试邀请 → 仿腾讯会议的面试间（AI 出题 / 判题 / 深挖 / 提示 / 随机事件 / 计时） → Offer 或未录用。
+内置两套运行模式：
 
-- `Mock 模式`：不配大模型也能本地跑通，适合提前搭框架、联调 UI、练展示。
-- `LLM 模式`：配置 OpenAI 兼容接口后，后端会把开场、追问、总结交给大模型生成。
+- `Mock 模式`：不配大模型也能本地跑通整条链路。
+- `LLM 模式`：配置 OpenAI 兼容接口后，出题、判题、提示、总结、Offer 信都由大模型生成。
 
 ## 目录结构
 
 ```text
-backend/   Python 后端逻辑、提示词、Mock 数据
-docs/      改进后的比赛版策划与冲刺清单
-web/       无构建依赖的静态前端
-server.py  本地启动入口
+backend/
+  engine.py              轮次状态机：ask / answer / judge / drill / hint / event / final
+  events.py              随机事件引擎（掷骰 / 结算 / 一次性触发）
+  interviewers/          面试官注册表 —— 新增面试官 = 新建一个 .py 文件
+    cold_judge.py
+    spark_hr.py
+    tactical_lead.py
+    blackbox_ai.py
+  ai_client.py           LLM 调用封装
+  prompts.py             各阶段 prompt 模板
+  mock_content.py        岗位 / 难度 / AI 简历草稿生成
+web/
+  index.html             四步流程（简历 → 邀请 → 仿 TX 会议 → 结果）
+  styles.css
+  app.js
+server.py                本地 HTTP 服务入口
 ```
 
 ## 快速运行
@@ -20,11 +33,11 @@ server.py  本地启动入口
 python server.py
 ```
 
-启动后访问 `http://127.0.0.1:8000`。
+访问 `http://127.0.0.1:8765`。
 
 ## 接入大模型
 
-复制一份 `.env.example` 为 `.env`，填入你比赛当天会使用的 OpenAI 兼容配置：
+复制 `.env.example` 为 `.env` 填入配置：
 
 ```env
 OPENAI_API_KEY=你的密钥
@@ -33,23 +46,31 @@ OPENAI_MODEL=你的模型名
 AI_GAME_FORCE_MOCK=0
 ```
 
-如果没有配置，系统会自动退回本地 Mock 模式。
+没有配置或配置无效时，系统自动回退为 Mock 模式，不会中断流程。
 
-## 当前实现
+## 核心玩法
 
-- 岗位、面试官、难度驱动的动态面试上下文
-- 自定义简历 / AI 生成简历双模式
-- 面试官人格与难度选择
-- 动态追问、压力值、维度评分
-- 面试结局与分享型报告文案
-- OpenAI 兼容接口抽象 + 本地回退策略
+1. 粘贴或 AI 生成一份简历，选择难度和应聘岗位。
+2. 系统分析简历，随机抽 3 位面试官发出邀请，玩家择一接受。
+3. 进入仿腾讯会议的面试间，按轮次作答：
+   - 每题有倒计时，超时按放弃处理并计入最低分。
+   - 答对有概率被深挖（最多 3 层，每层概率由面试官配置）。
+   - 答错有概率获得提示再答（最多 3 次，否则本轮收束）。
+   - 轮内 / 轮间会按概率触发随机事件（旁白 / 选择题 / 文字输入），部分事件会影响分数甚至直接终结面试。
+4. 每轮结算出一个轮分（满分 100），多轮平均后与面试官的 `pass_score` 比较：达到则发出 Offer 文案，否则显示未录用卡片；六维评分仅用于结果页的复盘展示。
 
-## 建议比赛当天的开发顺序
+## 扩展：新增一位面试官
 
-1. 先用 Mock 模式跑通整条链路，确保 UI 和流程稳定。
-2. 再接通真实 API，把提示词调到“像真人面试”。
-3. 最后补视觉素材、角色卡和分享页截图表现。
+在 `backend/interviewers/` 下新建一个 `.py` 文件，导出 `INTERVIEWER` 字典，包含人设、通过线、题库、深挖 / 提示概率、随机事件即可。框架会在进程启动时自动加载，无需改动其它文件。
 
-## 验证
+## API 速览
 
-本项目不依赖 Node 或构建工具，适合在只装了 Python 的机器上提前搭骨架与演示。
+- `GET  /api/bootstrap` 返回岗位、难度、运行模式。
+- `POST /api/resume/mock` 生成一份可演示的 AI 简历。
+- `POST /api/invitations` 分析简历并抽样 3 位面试官。
+- `POST /api/session/start` 开始面试，返回首个"阶段描述符"。
+- `POST /api/session/answer` 提交回答，返回下一阶段描述符。
+- `POST /api/session/timeout` 当前题超时通知。
+- `POST /api/session/event` 玩家对随机事件的回应（选项 id 或文本）。
+
+阶段描述符统一结构：`{ phase, question?, timerMs?, event?, metrics, transcript, isFinal, report? }`。

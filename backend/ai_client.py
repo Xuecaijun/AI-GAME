@@ -6,7 +6,14 @@ import re
 from typing import Any
 from urllib import error, request
 
-from .prompts import build_opening_prompts, build_summary_prompts, build_turn_prompts
+from .prompts import (
+    build_hint_prompts,
+    build_judge_prompts,
+    build_offer_prompts,
+    build_opening_prompts,
+    build_question_prompts,
+    build_summary_prompts,
+)
 
 
 class AIClientError(RuntimeError):
@@ -35,13 +42,25 @@ class AIClient:
         system_prompt, user_prompt = build_opening_prompts(context)
         return self._chat_json(system_prompt, user_prompt, temperature=0.9)
 
-    def evaluate_turn(self, context: dict[str, Any], answer: str) -> dict[str, Any]:
-        system_prompt, user_prompt = build_turn_prompts(context, answer)
+    def generate_question(self, context: dict[str, Any]) -> dict[str, Any]:
+        system_prompt, user_prompt = build_question_prompts(context)
+        return self._chat_json(system_prompt, user_prompt, temperature=0.85)
+
+    def judge_answer(self, context: dict[str, Any], answer: str) -> dict[str, Any]:
+        system_prompt, user_prompt = build_judge_prompts(context, answer)
+        return self._chat_json(system_prompt, user_prompt, temperature=0.55)
+
+    def generate_hint(self, context: dict[str, Any]) -> dict[str, Any]:
+        system_prompt, user_prompt = build_hint_prompts(context)
         return self._chat_json(system_prompt, user_prompt, temperature=0.7)
 
     def summarize_session(self, context: dict[str, Any]) -> dict[str, Any]:
         system_prompt, user_prompt = build_summary_prompts(context)
         return self._chat_json(system_prompt, user_prompt, temperature=0.8)
+
+    def build_offer_letter(self, context: dict[str, Any]) -> dict[str, Any]:
+        system_prompt, user_prompt = build_offer_prompts(context)
+        return self._chat_json(system_prompt, user_prompt, temperature=0.9)
 
     def _chat_json(self, system_prompt: str, user_prompt: str, temperature: float) -> dict[str, Any]:
         if not self.configured:
