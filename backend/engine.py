@@ -48,7 +48,7 @@ from .mock_content import (
     build_theme_blurb,
     generate_mock_resume,
     get_difficulty,
-    get_role,
+    resolve_role,
 )
 
 
@@ -80,12 +80,26 @@ class GameEngine:
             "appName": "终面：AI面试官",
             "tagline": "AI 驱动的动态面试生存游戏",
             "roles": ROLE_LIBRARY,
+            "interviewTracks": [
+                {
+                    "id": "technical",
+                    "label": "技术面",
+                    "description": "沿用当前技术面试玩法，收到不同技术面试官邀请后择一进入。",
+                    "enabled": True,
+                },
+                {
+                    "id": "non-technical",
+                    "label": "非技术面",
+                    "description": "接口预留中，后续可接入 HR 面、业务面、综合面等非技术流程。",
+                    "enabled": False,
+                },
+            ],
             "difficulties": [{"id": key, **value} for key, value in DIFFICULTIES.items()],
             "runtime": self.ai_client.runtime_status(),
         }
 
     def generate_mock_resume(self, payload: dict[str, Any]) -> dict[str, Any]:
-        role = get_role(payload.get("roleId", ""))
+        role = resolve_role(payload.get("roleId", ""), payload.get("roleTitle", ""))
         difficulty = get_difficulty(payload.get("difficulty", "normal"))
         keyword = (payload.get("themeKeyword") or "").strip()
         return {
@@ -97,15 +111,30 @@ class GameEngine:
     # ------------------------------------------------------------------ invitation
 
     def build_invitations(self, payload: dict[str, Any]) -> dict[str, Any]:
-        role = get_role(payload.get("roleId", ""))
+        role = resolve_role(payload.get("roleId", ""), payload.get("roleTitle", ""))
         difficulty = get_difficulty(payload.get("difficulty", "normal"))
         resume_text = (payload.get("resumeText") or "").strip()
         theme_keyword = (payload.get("themeKeyword") or "").strip()
+        interview_track = str(payload.get("interviewTrack", "technical")).strip() or "technical"
 
         if not resume_text:
             raise ValueError("请先填写或生成简历。")
 
         analysis = self._analyze_resume(resume_text, role, theme_keyword)
+
+        if interview_track != "technical":
+            return {
+                "role": role,
+                "difficulty": difficulty,
+                "analysis": analysis,
+                "interviewTrack": interview_track,
+                "comingSoon": True,
+                "placeholder": {
+                    "title": "非技术面接口预留中",
+                    "description": "当前版本先保留非技术面入口，后续会在这里接入 HR 面、业务面、综合面等邀请流程。",
+                },
+                "invitations": [],
+            }
 
         all_items = list(all_interviewers())
         if not all_items:
@@ -119,13 +148,15 @@ class GameEngine:
             "role": role,
             "difficulty": difficulty,
             "analysis": analysis,
+            "interviewTrack": interview_track,
+            "comingSoon": False,
             "invitations": [public_card(item) for item in picked],
         }
 
     # ------------------------------------------------------------------ session lifecycle
 
     def start_session(self, payload: dict[str, Any]) -> dict[str, Any]:
-        role = get_role(payload.get("roleId", ""))
+        role = resolve_role(payload.get("roleId", ""), payload.get("roleTitle", ""))
         difficulty = get_difficulty(payload.get("difficulty", "normal"))
         interviewer = get_interviewer(payload.get("interviewerId", ""))
         theme_keyword = (payload.get("themeKeyword") or "").strip()
