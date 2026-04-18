@@ -327,6 +327,23 @@ function renderRuntime(runtime) {
   els.runtimeReason.textContent = runtime.reason;
 }
 
+function renderDifficulties() {
+  els.difficultyList.innerHTML = "";
+  state.bootstrap.difficulties.forEach((difficulty) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `chip difficulty-chip ${difficulty.id === state.selectedDifficulty ? "active" : ""}`;
+    button.dataset.difficulty = String(difficulty.id || "").toLowerCase();
+    button.textContent = difficulty.label;
+    button.title = difficulty.description;
+    button.addEventListener("click", () => {
+      state.selectedDifficulty = difficulty.id;
+      renderDifficulties();
+    });
+    els.difficultyList.appendChild(button);
+  });
+}
+
 function renderRoles() {
   els.roleList.innerHTML = "";
 
