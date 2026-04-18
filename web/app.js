@@ -296,7 +296,8 @@ function renderDifficulties() {
   state.bootstrap.difficulties.forEach((difficulty) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `chip ${difficulty.id === state.selectedDifficulty ? "active" : ""}`;
+    button.className = `chip difficulty-chip ${difficulty.id === state.selectedDifficulty ? "active" : ""}`;
+    button.dataset.difficulty = String(difficulty.id || "").toLowerCase();
     button.textContent = difficulty.label;
     button.title = difficulty.description;
     button.addEventListener("click", () => {
