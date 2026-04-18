@@ -1481,7 +1481,12 @@ function updateEntryChrome() {
     els.appTopbar.classList.toggle("hidden", inEntry);
   }
   if (els.appTabbar) {
-    els.appTabbar.classList.toggle("hidden", inEntry);
+    // 与 switchView 中的全屏子视图（会议/结果/选赛道）一致：底栏由 subview-fullscreen 决定，不能在此处误删 hidden
+    if (inEntry) {
+      els.appTabbar.classList.add("hidden");
+    } else if (!document.body.classList.contains("subview-fullscreen")) {
+      els.appTabbar.classList.remove("hidden");
+    }
   }
 }
 
