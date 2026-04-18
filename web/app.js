@@ -1590,11 +1590,9 @@ function resetAll() {
   els.startView?.classList.add("hidden");
   els.startView?.classList.remove("active");
   state.customRoleTitle = "";
-  state.selectedInterviewTrack = state.bootstrap?.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
+  state.selectedInterviewTrack = "technical";
   resetTechnicalRecommendationState({ rerender: false });
-  if (state.selectedInterviewTrack !== "technical") {
-    state.selectedRoleId = null;
-  }
+  state.selectedRoleId = getDefaultTechnicalRole()?.id ?? null;
   els.resumeText.value = "";
   els.modeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === "custom");
@@ -1614,7 +1612,7 @@ function resetAll() {
   state.tts.lastSpokenIdx = 0;
   state.invitesNotifyPending = false;
   updateChatTabDot();
-  switchView("resume");
+  switchView("choose-track");
 }
 
 function buildResumePayload(overrides = {}) {
