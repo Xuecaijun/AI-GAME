@@ -193,6 +193,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   bindEvents();
+  setupStartViewEffects();
   await detectTTSMode();
   await loadBootstrap();
   updateEntryChrome();
@@ -216,7 +217,7 @@ function bindEvents() {
     });
   });
 
-  els.startGameBtn?.addEventListener("click", openTrackPicker);
+  els.startGameBtn?.addEventListener("click", playStartTransition);
   els.pickTechnicalBtn?.addEventListener("click", () => {
     state.selectedInterviewTrack = "technical";
     beginGame();
@@ -245,6 +246,45 @@ function bindEvents() {
   els.restartBtn.addEventListener("click", resetAll);
   els.eventTextSubmit.addEventListener("click", () => submitEvent({ text: els.eventTextInput.value }));
   bindRecruitChrome();
+}
+
+function setupStartViewEffects() {
+  const startView = els.startView;
+  const startCard = startView?.querySelector(".landing-card");
+  const titleEl = startCard?.querySelector("h1");
+  const copyEl = startCard?.querySelector(".landing-copy");
+  const startBtn = els.startGameBtn;
+
+  if (!startView || !startCard || !titleEl || !copyEl || !startBtn) return;
+
+  const originalTitle = titleEl.textContent || "";
+  const originalCopy = copyEl.textContent || "";
+
+  startView.classList.add("fx-ready");
+  startCard.classList.add("fx-card-enter");
+  startBtn.classList.add("fx-start-pulse");
+
+  titleEl.textContent = "";
+  copyEl.textContent = "";
+
+  const typeText = (node, text, speed = 46, done) => {
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index += 1;
+      node.textContent = text.slice(0, index);
+      if (index >= text.length) {
+        window.clearInterval(timer);
+        if (typeof done === "function") done();
+      }
+    }, speed);
+  };
+
+  window.setTimeout(() => {
+    typeText(titleEl, originalTitle, 44, () => {
+      copyEl.classList.add("fx-copy-fade-in");
+      typeText(copyEl, originalCopy, 24);
+    });
+  }, 160);
 }
 
 /* =====================================================================
@@ -1331,6 +1371,40 @@ function finishMeeting(descriptor) {
 /* =====================================================================
  * 视图切换 & 工具函数
  * ================================================================ */
+
+function playStartTransition() {
+  const startView = els.startView;
+  if (!startView) {
+    openTrackPicker();
+    return;
+  }
+
+  if (startView.classList.contains("fx-loading")) return;
+
+  startView.classList.add("fx-loading");
+
+  const loadingOverlay = document.createElement("div");
+  loadingOverlay.className = "start-loading-overlay";
+  loadingOverlay.innerHTML = `
+    <div class="start-loading-card panel">
+      <div class="start-loading-title">系统启动中...</div>
+      <div class="start-loading-sub">正在连接面试官会场</div>
+      <div class="start-loading-bar"><span></span></div>
+    </div>
+  `;
+
+  startView.appendChild(loadingOverlay);
+
+  window.setTimeout(() => {
+    loadingOverlay.classList.add("done");
+  }, 860);
+
+  window.setTimeout(() => {
+    startView.classList.remove("fx-loading");
+    loadingOverlay.remove();
+    openTrackPicker();
+  }, 1120);
+}
 
 function openTrackPicker() {
   els.startView?.classList.remove("active");

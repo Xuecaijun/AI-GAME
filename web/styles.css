@@ -1438,6 +1438,105 @@ body.theme-recruit .start-actions {
   justify-content: center;
 }
 
+/* Start view playful effects */
+body.theme-recruit .start-view.fx-ready {
+  position: relative;
+  overflow: hidden;
+}
+
+body.theme-recruit .start-view.fx-ready::after {
+  content: "";
+  position: absolute;
+  inset: -40% 0 auto 0;
+  height: 160%;
+  pointer-events: none;
+  opacity: 0.08;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.16) 0,
+    rgba(255, 255, 255, 0.16) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+  animation: startScanMove 8s linear infinite;
+}
+
+body.theme-recruit .landing-card.fx-card-enter {
+  animation: startCardIn 260ms ease-out both;
+}
+
+body.theme-recruit .landing-card h1 {
+  min-height: 1.8em;
+}
+
+body.theme-recruit .landing-copy {
+  min-height: 1.6em;
+}
+
+body.theme-recruit .landing-copy.fx-copy-fade-in {
+  animation: copyFadeIn 220ms ease-out both;
+}
+
+body.theme-recruit .fx-start-pulse {
+  position: relative;
+  animation: startBtnPulse 1.6s steps(4, end) infinite;
+}
+
+body.theme-recruit .fx-start-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1px dashed rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  opacity: 0.7;
+  animation: startBtnBorderBlink 1.1s steps(2, end) infinite;
+}
+
+@keyframes startCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes copyFadeIn {
+  from { opacity: 0.2; }
+  to { opacity: 1; }
+}
+
+@keyframes startBtnPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes startBtnBorderBlink {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes startScanMove {
+  from {
+    transform: translateY(-12px);
+  }
+  to {
+    transform: translateY(12px);
+  }
+}
+
 body.theme-recruit .choose-track-view {
   padding: 16px;
 }
@@ -2378,9 +2477,13 @@ textarea,
   animation: pulse 1.1s steps(3, end) infinite;
 }
 
-.mini-fill,
-.timer-bar > div {
+.mini-fill {
   transition: width 180ms steps(6, end);
+}
+
+/* 倒计时进度条使用线性过渡，避免 steps 造成“看起来不动” */
+.timer-bar > div {
+  transition: width 120ms linear;
 }
 
 /* Recruit shell: keep color theme, pixelize shape + interaction */
