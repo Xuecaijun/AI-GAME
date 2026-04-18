@@ -1461,6 +1461,8 @@ class GameEngine:
             "sessionScore": session_score,
             "passScore": pass_score,
             "summary": summary_data["summary"],
+            "oneLiner": summary_data["oneLiner"],
+            "tier": self._resolve_tier(session_score),
             "interviewerQuote": summary_data["interviewerQuote"],
             "highlight": summary_data["highlight"],
             "flop": summary_data["flop"],
@@ -1525,12 +1527,41 @@ class GameEngine:
         return {
             "verdictLabel": str(payload.get("verdictLabel", "")) or None,
             "summary": str(payload["summary"]),
+            "oneLiner": self._normalize_one_liner(payload.get("oneLiner", "")),
             "interviewerQuote": str(payload["interviewerQuote"]),
             "highlight": str(payload["highlight"]),
             "flop": str(payload["flop"]),
             "tips": str(payload["tips"]),
             "shareLines": [str(item) for item in payload.get("shareLines", [])][:3],
         }
+
+    def _normalize_one_liner(self, raw: Any) -> str:
+        text = str(raw or "").strip()
+        if not text:
+            return "感觉你是那种还能再练练的人"
+        if not text.startswith("感觉你是那种"):
+            text = f"感觉你是那种{text.lstrip('：: ').lstrip()}"
+        if not text.endswith("的人"):
+            text = f"{text.rstrip('。.！!？?')}的人"
+        if len(text) > 30:
+            text = text[:28] + "的人"
+        return text
+
+    # 评级档位：90+ 千里马；80-89 赤兔；70-79 驽马；55-69 骡子；<55 驴
+    _TIER_TABLE = (
+        (90, {"id": "qianlima", "label": "千里马", "tagline": "场上能一眼看出是干活的人"}),
+        (80, {"id": "chitu", "label": "赤兔马", "tagline": "偶有亮点，关键题还能顶住"}),
+        (70, {"id": "numa", "label": "驽马", "tagline": "能跑但还没跑出速度感"}),
+        (55, {"id": "luozi", "label": "骡子", "tagline": "稳是稳，可惜没几道题答到位"}),
+        (0, {"id": "lv", "label": "驴", "tagline": "今天这场基本是被牵着走的"}),
+    )
+
+    def _resolve_tier(self, session_score: int) -> dict[str, str]:
+        score = int(session_score or 0)
+        for floor, tier in self._TIER_TABLE:
+            if score >= floor:
+                return dict(tier)
+        return dict(self._TIER_TABLE[-1][1])
 
     def _summary_transcript(self, session: dict[str, Any], limit: int = 18) -> list[dict[str, str]]:
         transcript = session.get("transcript", [])
@@ -1566,6 +1597,7 @@ class GameEngine:
                 f"通过线 {session['interviewer'].get('pass_score', 70)}，这次回答总算没只停在嘴上。",
                 "今天这场不像背题，更像把真经验讲到面试官点头。",
             ]
+            one_liner = "感觉你是那种敢把细节讲到底的人"
         else:
             summary = "这场主要输在回答只到表层，一被追问就开始打滑，细节、边界和前后自洽性都没顶住。"
             share_lines = [
@@ -1573,9 +1605,11 @@ class GameEngine:
                 f"通过线 {session['interviewer'].get('pass_score', 70)}，面试官追两层我就有点露怯。",
                 "回去得补原理、补细节、补自洽，下次不能再把会一点讲成做过了。",
             ]
+            one_liner = "感觉你是那种会一点就敢说做过的人"
 
         return {
             "summary": summary,
+            "oneLiner": one_liner,
             "interviewerQuote": self._pick_quote(session["interviewer"]["id"], verdict),
             "highlight": f"第 {best['round']} 轮（{best['score']} 分）题目：{best['question']}" if "round" in best else best["question"],
             "flop": f"第 {worst['round']} 轮（{worst['score']} 分）题目：{worst['question']}" if "round" in worst else worst["question"],

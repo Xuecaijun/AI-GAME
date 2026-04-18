@@ -318,64 +318,54 @@
           <button id="restart-btn" class="ghost-btn">再来一局</button>
         </div>
 
-        <div id="result-notice-card" class="result-notice-card">
-          <div class="result-notice-icon" aria-hidden="true">!</div>
-          <div class="result-notice-body">
-            <p class="result-notice-label">面试已结束</p>
-            <p id="result-notice-line" class="result-notice-line muted">结果已生成，请查看下方详情。</p>
-          </div>
-          <div id="result-badge" class="result-badge result-badge-inline">待定</div>
-        </div>
+        <div class="report-card" id="report-card">
+          <header class="report-card-head">
+            <div class="tier-block">
+              <div class="tier-img-frame">
+                <img id="tier-img" alt="" class="tier-img" />
+              </div>
+              <div class="tier-text">
+                <span class="tier-eyebrow">本场评级</span>
+                <strong id="tier-label">—</strong>
+                <span id="tier-tagline" class="tier-tagline muted">—</span>
+              </div>
+            </div>
 
-        <div id="offer-letter" class="offer-letter hidden">
-          <header class="letter-head">
-            <span class="letter-badge">OFFER</span>
-            <h3 id="offer-company">—</h3>
+            <div class="report-verdict-slot">
+              <div id="result-notice-card" class="result-notice-card">
+                <div class="result-notice-icon" aria-hidden="true">!</div>
+                <div class="result-notice-body">
+                  <p class="result-notice-label">面试已结束</p>
+                  <p id="result-notice-line" class="result-notice-line muted">结果已生成，请查看下方详情。</p>
+                </div>
+                <div id="result-badge" class="result-badge result-badge-inline">待定</div>
+              </div>
+
+              <div id="offer-letter" class="offer-letter hidden">
+                <header class="letter-head">
+                  <span class="letter-badge">OFFER</span>
+                  <h3 id="offer-company">—</h3>
+                </header>
+                <p class="letter-row"><b>岗位</b>：<span id="offer-position">—</span></p>
+                <p class="letter-row"><b>薪资</b>：<span id="offer-salary">—</span></p>
+                <p class="letter-row"><b>到岗</b>：<span id="offer-start">—</span></p>
+                <p class="letter-body" id="offer-body">—</p>
+                <p class="letter-sign" id="offer-signature">—</p>
+              </div>
+
+              <div id="reject-card" class="reject-card hidden">
+                <span class="reject-stamp">REJECTED</span>
+                <h3>很遗憾，本次你没有通过终面。</h3>
+                <p id="reject-reason" class="muted"></p>
+              </div>
+            </div>
           </header>
-          <p class="letter-row"><b>岗位</b>：<span id="offer-position">—</span></p>
-          <p class="letter-row"><b>薪资</b>：<span id="offer-salary">—</span></p>
-          <p class="letter-row"><b>到岗</b>：<span id="offer-start">—</span></p>
-          <p class="letter-body" id="offer-body">—</p>
-          <p class="letter-sign" id="offer-signature">—</p>
-        </div>
 
-        <div id="reject-card" class="reject-card hidden">
-          <span class="reject-stamp">REJECTED</span>
-          <h3>很遗憾，本次你没有通过终面。</h3>
-          <p id="reject-reason" class="muted"></p>
-        </div>
+          <p id="result-summary" class="report-eval"></p>
 
-        <div class="result-layout">
-          <div class="result-main">
-            <p id="result-summary" class="result-summary"></p>
-            <blockquote id="result-quote" class="quote"></blockquote>
-            <p id="result-tips" class="muted"></p>
-          </div>
-
-          <div class="result-side">
-            <div class="analysis-box">
-              <h4>高光回答</h4>
-              <p id="highlight-text"></p>
-            </div>
-            <div class="analysis-box">
-              <h4>翻车回答</h4>
-              <p id="flop-text"></p>
-            </div>
-            <div class="analysis-box">
-              <h4>各轮得分</h4>
-              <ol id="round-score-list" class="round-list"></ol>
-            </div>
-          </div>
-        </div>
-
-        <div class="dimension-box">
-          <h3>六维评分（仅用于复盘）</h3>
-          <div id="dimension-grid" class="dimension-grid"></div>
-        </div>
-
-        <div class="analysis-box share-box">
-          <h4>分享文案</h4>
-          <div id="share-lines"></div>
+          <p id="result-oneliner" class="report-oneliner">
+            感觉你是那种<span id="oneliner-core">—</span>的人
+          </p>
         </div>
       </section>
 
