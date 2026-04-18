@@ -1,12 +1,14 @@
 const state = {
   bootstrap: null,
   selectedRoleId: null,
+  selectedCompanyName: "",
   roleConfirmed: false,
   selectedRoleMode: "preset",
   customRoleTitle: "",
   selectedInterviewTrack: "technical",
-  selectedDifficulty: "normal",
   resumeMode: "custom",
+  recommendedJobs: [],
+  invitationsLoading: false,
   invitations: null,
   invitesNotifyPending: false,
   session: null,
@@ -36,6 +38,18 @@ const dimensionLabels = {
   adaptability: "临场反应",
 };
 
+const TECH_COMPANY_NAMES = ["鹅讯", "志节", "化为", "北度", "啊里"];
+
+const TECH_ROLE_HINTS = {
+  "frontend-engineer": ["前端", "react", "typescript", "javascript", "vue", "浏览器", "组件", "可视化"],
+  "backend-engineer": ["后端", "java", "go", "python", "mysql", "redis", "服务端", "api", "分布式"],
+  "algorithm-engineer": ["算法", "机器学习", "深度学习", "pytorch", "tensorflow", "模型", "特征工程", "训练"],
+  "fullstack-engineer": ["全栈", "node", "react", "数据库", "接口设计", "devops", "前后端"],
+  "ai-application-engineer": ["llm", "大模型", "rag", "prompt", "agent", "工作流", "ai", "模型评估"],
+  "client-engineer": ["客户端", "android", "ios", "swift", "kotlin", "移动端", "app"],
+  "test-engineer": ["测试", "自动化测试", "qa", "回归", "ci", "接口测试", "质量保障"],
+};
+
 const el = (id) => document.getElementById(id);
 
 const els = {
@@ -45,14 +59,17 @@ const els = {
 
   // resume view
   resumeView: el("resume-view"),
-  difficultyList: el("difficulty-list"),
   roleList: el("role-list"),
+  roleListHeading: el("role-list-heading"),
   offerPickerField: el("offer-picker-field"),
+  generateJobsBtn: el("generate-jobs-btn"),
+  recommendationHint: el("recommendation-hint"),
   selectedOfferField: el("selected-offer-field"),
   selectedOfferTitle: el("selected-offer-title"),
   changeOfferBtn: el("change-offer-btn"),
-  roleDependentFields: Array.from(document.querySelectorAll(".resume-requires-role")),
+  submitRow: el("submit-row"),
   roleSelectHint: document.querySelector(".role-select-hint"),
+  interviewTrackField: el("interview-track-field"),
   interviewTrackList: el("interview-track-list"),
   interviewTrackHint: el("interview-track-hint"),
   resumeText: el("resume-text"),
@@ -63,8 +80,8 @@ const els = {
   modeButtons: Array.from(document.querySelectorAll(".mode-btn")),
   setupTitle: document.querySelector("#resume-view .section-head h2"),
   roleFieldLabel: document.querySelector("#role-list")?.parentElement?.querySelector("span"),
-  resumeModeField: document.querySelector(".mode-switch")?.closest(".field"),
-  resumeContentField: el("resume-text")?.closest(".field"),
+  resumeModeField: el("resume-mode-field"),
+  resumeContentField: el("resume-content-field"),
   startHint: document.querySelector(".start-row .muted"),
   invitationAnalysisTitle: document.querySelector("#invitation-analysis h4"),
 
@@ -152,6 +169,8 @@ const els = {
   rejectCard: el("reject-card"),
   rejectReason: el("reject-reason"),
   toast: el("toast"),
+  joiningMeetingOverlay: el("joining-meeting-overlay"),
+  joiningMeetingSub: el("joining-meeting-sub"),
   hero: el("hero"),
   startView: el("start-view"),
   startGameBtn: el("start-game-btn"),
@@ -208,14 +227,16 @@ function bindEvents() {
 
   els.mockResumeBtn.addEventListener("click", generateMockResume);
   els.changeOfferBtn?.addEventListener("click", resetOfferSelection);
+  els.generateJobsBtn?.addEventListener("click", generateRecommendedJobs);
   els.uploadResumeBtn.addEventListener("click", () => els.resumeFile.click());
   els.resumeFile.addEventListener("change", uploadResumeFile);
+  els.resumeText?.addEventListener("input", handleResumeTextChange);
   els.toInvitationsBtn.addEventListener("click", fetchInvitations);
   els.backToResumeBtn.addEventListener("click", () => {
-    if (state.invitations && !state.invitations.comingSoon) {
-      state.invitesNotifyPending = true;
-      updateChatTabDot();
-    }
+    state.invitations = null;
+    state.invitesNotifyPending = false;
+    updateChatTabDot();
+    resetTechnicalRecommendationState();
     switchView("resume");
   });
   els.submitAnswerBtn.addEventListener("click", submitAnswer);
@@ -241,6 +262,8 @@ async function loadBootstrap() {
     } else {
       state.selectedRoleId = data.roles[0]?.id ?? null;
     }
+    state.selectedCompanyName = "";
+    state.recommendedJobs = [];
     renderBootstrap();
   } catch (err) {
     alert(err.message || "初始化失败");
@@ -249,7 +272,6 @@ async function loadBootstrap() {
 
 function renderBootstrap() {
   renderRuntime(state.bootstrap.runtime);
-  renderDifficulties();
   renderTrackMode();
   renderRoles();
   renderInterviewTracks();
@@ -260,10 +282,13 @@ function renderTrackMode() {
   const isTechnical = state.selectedInterviewTrack === "technical";
 
   if (els.setupTitle) {
-    els.setupTitle.textContent = isTechnical ? "配置你的简历" : "挑一张你想入场的角色卡";
+    els.setupTitle.textContent = isTechnical ? "上传简历并生成推荐岗位" : "挑一张你想入场的角色卡";
   }
   if (els.roleFieldLabel) {
-    els.roleFieldLabel.textContent = isTechnical ? "应聘岗位" : "本轮卡池";
+    els.roleFieldLabel.textContent = isTechnical ? "推荐岗位" : "本轮卡池";
+  }
+  if (els.roleListHeading) {
+    els.roleListHeading.textContent = isTechnical ? "推荐岗位" : "本轮卡池";
   }
   if (els.mockResumeBtn) {
     els.mockResumeBtn.style.display = isTechnical ? "" : "none";
@@ -274,9 +299,20 @@ function renderTrackMode() {
   if (els.resumeContentField) {
     els.resumeContentField.style.display = isTechnical ? "" : "none";
   }
+  if (els.interviewTrackField) {
+    els.interviewTrackField.style.display = isTechnical ? "none" : "";
+  }
+  if (els.generateJobsBtn) {
+    els.generateJobsBtn.style.display = isTechnical ? "" : "none";
+  }
+  if (els.recommendationHint) {
+    els.recommendationHint.textContent = isTechnical
+      ? "先上传个人简历，再生成与你经历相关的推荐岗位。"
+      : "非技术面会直接展示面试官卡池。";
+  }
   if (els.startHint) {
     els.startHint.textContent = isTechnical
-      ? "系统会先分析简历，再随机抽取 3 位技术面试官向你发起邀请。"
+      ? "系统会先分析简历，并基于你选择的岗位随机抽取 3 位技术面试官向你发起邀请。"
       : "非技术面不需要带简历。三位角色面试官会各自带着岗位卡登场，你挑中感兴趣的一张就能开面。";
   }
   if (!isTechnical) {
@@ -327,80 +363,120 @@ function renderRoles() {
     });
     return;
   }
-  const roleLibrary = isTechnical
-    ? (state.bootstrap.technicalRoles || state.bootstrap.roles)
-    : state.bootstrap.roles;
-
-  if (!roleLibrary.some((role) => role.id === state.selectedRoleId)) {
-    state.selectedRoleId = roleLibrary[0]?.id ?? null;
+  const recommendedJobs = state.recommendedJobs || [];
+  if (!recommendedJobs.length) {
+    const empty = document.createElement("article");
+    empty.className = "analysis-box recommendation-empty";
+    empty.innerHTML = `
+      <h4>先上传简历</h4>
+      <p class="muted">系统会根据你的项目经历、技术关键词和岗位方向，生成 5 个对应不同公司的推荐岗位。</p>
+    `;
+    els.roleList.appendChild(empty);
+    return;
   }
 
-  roleLibrary.forEach((role, index) => {
+  recommendedJobs.forEach((item, index) => {
+    const role = item.role;
     const card = document.createElement("button");
     card.type = "button";
-    card.className = `select-card role-feed-card ${role.id === state.selectedRoleId ? "active" : ""}`;
+    const active = state.roleConfirmed && role.id === state.selectedRoleId && item.company === state.selectedCompanyName;
+    card.className = `select-card role-feed-card ${active ? "active" : ""}`;
+    card.disabled = Boolean(state.invitationsLoading);
 
-    const seed = seededIndex(role.id || role.title || String(index));
-    const salaryPool = isTechnical
-      ? ["18-28K·14薪", "20-35K·16薪", "25-40K·15薪", "15-24K·13薪", "30-45K·16薪"]
-      : ["8-12K·13薪", "10-15K·13薪", "12-20K·14薪", "15-22K·14薪", "6-9K·12薪"];
-    const companyPool = ["曜石互动", "北辰科技", "星澜智能", "回声网络", "启元数据", "云途创新"];
+    const seed = seededIndex(`${item.company}-${role.id || role.title || String(index)}`);
+    const salaryPool = ["18-28K·14薪", "20-35K·16薪", "25-40K·15薪", "15-24K·13薪", "30-45K·16薪"];
     const cityPool = ["北京", "上海", "深圳", "杭州", "成都", "广州"];
     const scalePool = ["20-99人", "100-499人", "500-999人", "1000-9999人", "A轮", "B轮", "不需要融资"];
-    const expPool = ["1-3年", "3-5年", "应届/实习", "经验不限"];
-    const degreePool = ["本科", "大专", "硕士优先", "学历不限"];
-
-    const keywords = Array.isArray(role.keywords) ? role.keywords.slice(0, 4) : [];
+    const tags = item.matches.length ? item.matches : (Array.isArray(role.keywords) ? role.keywords.slice(0, 4) : []);
     card.innerHTML = `
       <div class="role-feed-head">
-        <h4>${escapeHtml(role.title)}</h4>
+        <h4>${escapeHtml(`${item.company} · ${role.title}`)}</h4>
         <strong class="role-feed-salary">${salaryPool[seed % salaryPool.length]}</strong>
       </div>
-      <p class="role-feed-company">${companyPool[seed % companyPool.length]} · ${scalePool[(seed + 2) % scalePool.length]} · ${cityPool[(seed + 1) % cityPool.length]}</p>
-      <p class="role-feed-summary">${escapeHtml(role.summary || "该岗位将根据你的简历进行深挖问答与场景事件追问。")}</p>
+      <p class="role-feed-company">${escapeHtml(item.company)} · ${scalePool[(seed + 2) % scalePool.length]} · ${cityPool[(seed + 1) % cityPool.length]}</p>
+      <p class="role-feed-summary">${escapeHtml(item.reason || role.summary || "该岗位将根据你的简历进行深挖问答与场景事件追问。")}</p>
       <div class="role-feed-tags">
-        ${(keywords.length ? keywords : [expPool[seed % expPool.length], degreePool[(seed + 1) % degreePool.length], isTechnical ? "技术面" : "通用面"])
+        ${(tags.length ? tags : ["技术面", "项目经历", "岗位匹配"])
           .map((tag) => `<span>${escapeHtml(String(tag))}</span>`)
           .join("")}
       </div>
     `;
-    card.addEventListener("click", () => {
+    card.addEventListener("click", async () => {
+      if (state.invitationsLoading) return;
       state.selectedRoleMode = "preset";
       state.selectedRoleId = role.id;
+      state.selectedCompanyName = item.company;
       state.roleConfirmed = true;
+      state.invitationsLoading = true;
+      if (els.recommendationHint) {
+        els.recommendationHint.textContent = "正在获取新招呼…";
+      }
       renderRoles();
       renderRoleDependentSections();
-      els.resumeView?.scrollTo?.({ top: 0, behavior: "smooth" });
+      try {
+        await postInvitationsAndNavigate();
+      } finally {
+        state.invitationsLoading = false;
+        renderRoles();
+        renderRoleDependentSections();
+      }
     });
     els.roleList.appendChild(card);
   });
 }
 
 function renderRoleDependentSections() {
+  const isTechnical = state.selectedInterviewTrack === "technical";
   const ready = Boolean(state.roleConfirmed && state.selectedRoleId);
-  (els.roleDependentFields || []).forEach((node) => {
-    node.classList.toggle("hidden", !ready);
-  });
-  if (els.offerPickerField) {
-    els.offerPickerField.classList.toggle("hidden", ready);
+  const activeLibrary = isTechnical ? getTechnicalRoleLibrary() : (state.bootstrap?.roles || []);
+  const selectedRole = activeLibrary.find((role) => role.id === state.selectedRoleId);
+  const selectedRecommendation = getSelectedTechnicalRecommendation();
+
+  if (els.generateJobsBtn) {
+    const hasRecommendations = (state.recommendedJobs || []).length > 0;
+    els.generateJobsBtn.disabled = isTechnical && !hasTechnicalResumeText();
+    els.generateJobsBtn.textContent = hasRecommendations ? "重新生成推荐岗位" : "生成推荐岗位";
   }
   if (els.selectedOfferField) {
-    els.selectedOfferField.classList.toggle("hidden", !ready);
+    els.selectedOfferField.classList.toggle("hidden", isTechnical ? true : !ready);
+  }
+  if (els.submitRow) {
+    els.submitRow.classList.toggle("hidden", isTechnical ? true : !ready);
   }
   if (els.roleSelectHint) {
-    els.roleSelectHint.classList.toggle("hidden", ready);
+    if (!isTechnical) {
+      els.roleSelectHint.classList.add("hidden");
+    } else {
+      const hasRecommendations = (state.recommendedJobs || []).length > 0;
+      els.roleSelectHint.classList.remove("hidden");
+      els.roleSelectHint.textContent = hasRecommendations
+        ? "点击岗位卡片即可进入「沟通」新招呼页面。"
+        : "先上传或粘贴简历，再生成推荐岗位。";
+    }
   }
-  const activeLibrary = state.selectedInterviewTrack === "technical"
-    ? (state.bootstrap?.technicalRoles || state.bootstrap?.roles || [])
-    : (state.bootstrap?.roles || []);
-  const selectedRole = activeLibrary.find((role) => role.id === state.selectedRoleId);
+  if (els.recommendationHint) {
+    if (!isTechnical) {
+      els.recommendationHint.textContent = "非技术面会直接展示面试官卡池。";
+    } else if (state.invitationsLoading) {
+      els.recommendationHint.textContent = "正在获取新招呼…";
+    } else if ((state.recommendedJobs || []).length > 0) {
+      els.recommendationHint.textContent = "以下岗位根据你的简历关键词生成，每家公司各推荐 1 个岗位。点击卡片直接进入沟通页。";
+    } else {
+      els.recommendationHint.textContent = "先上传个人简历，再生成与你经历相关的推荐岗位。";
+    }
+  }
   if (els.selectedOfferTitle) {
-    els.selectedOfferTitle.textContent = selectedRole?.title || "—";
+    els.selectedOfferTitle.textContent = selectedRecommendation
+      ? `${selectedRecommendation.company} · ${selectedRecommendation.role.title}`
+      : (selectedRole?.title || "—");
   }
 }
 
 function resetOfferSelection() {
+  state.selectedCompanyName = "";
   state.roleConfirmed = false;
+  state.selectedRoleId = getDefaultTechnicalRole()?.id ?? state.selectedRoleId;
+  renderRoles();
   renderRoleDependentSections();
   els.resumeView?.scrollTo?.({ top: 0, behavior: "smooth" });
 }
@@ -415,10 +491,13 @@ function renderInterviewTracks() {
     button.title = track.description || "";
     button.addEventListener("click", () => {
       state.selectedInterviewTrack = track.id;
-      state.roleConfirmed = false;
       if (track.id === "technical") {
-        state.selectedRoleId = state.bootstrap?.technicalRoles?.[0]?.id ?? state.bootstrap?.roles?.[0]?.id ?? null;
+        resetTechnicalRecommendationState({ rerender: false });
+        state.selectedRoleId = getDefaultTechnicalRole()?.id ?? state.bootstrap?.roles?.[0]?.id ?? null;
       } else {
+        state.recommendedJobs = [];
+        state.selectedCompanyName = "";
+        state.roleConfirmed = false;
         state.selectedRoleId = null;
         state.selectedRoleMode = "preset";
         state.customRoleTitle = "";
@@ -440,20 +519,19 @@ function renderInterviewTracks() {
  * ================================================================ */
 
 async function generateMockResume() {
-  if (!ensureRoleSelection()) {
-    return;
-  }
   els.mockResumeBtn.disabled = true;
   try {
-    const data = await apiPost("/api/resume/mock", buildResumePayload());
-    if (state.selectedInterviewTrack === "technical") {
-      syncResolvedRole(data.role);
-    }
+    const payload = buildResumePayload({
+      roleId: pickMockResumeRoleId(),
+    });
+    const data = await apiPost("/api/resume/mock", payload);
     els.resumeText.value = data.resumeText;
     state.resumeMode = "ai-generated";
+    resetTechnicalRecommendationState();
     els.modeButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.mode === "ai-generated");
     });
+    renderRoleDependentSections();
   } catch (err) {
     alert(err.message || "生成简历失败");
   } finally {
@@ -474,9 +552,11 @@ async function uploadResumeFile(event) {
     });
     els.resumeText.value = data.resumeText || "";
     state.resumeMode = "custom";
+    resetTechnicalRecommendationState();
     els.modeButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.mode === "custom");
     });
+    renderRoleDependentSections();
   } catch (err) {
     alert(err.message || "上传简历失败");
   } finally {
@@ -485,24 +565,56 @@ async function uploadResumeFile(event) {
   }
 }
 
-async function fetchInvitations() {
-  if (!ensureRoleSelection()) {
+async function generateRecommendedJobs() {
+  if (state.selectedInterviewTrack !== "technical") {
     return;
   }
+  if (!hasTechnicalResumeText()) {
+    alert("请先上传、粘贴或生成一份简历。");
+    return;
+  }
+
+  els.generateJobsBtn.disabled = true;
+  try {
+    state.recommendedJobs = buildTechnicalRecommendations(els.resumeText.value.trim());
+    state.selectedRoleId = getDefaultTechnicalRole()?.id ?? state.selectedRoleId;
+    state.selectedCompanyName = "";
+    state.roleConfirmed = false;
+    renderRoles();
+    renderRoleDependentSections();
+    els.resumeView?.scrollTo?.({ top: 0, behavior: "smooth" });
+  } finally {
+    els.generateJobsBtn.disabled = false;
+    renderRoleDependentSections();
+  }
+}
+
+async function postInvitationsAndNavigate() {
   const payload = buildResumePayload();
   if (state.selectedInterviewTrack === "technical" && !payload.resumeText) {
     alert("先粘贴或生成一份简历。");
-    return;
+    return false;
   }
-  els.toInvitationsBtn.disabled = true;
   try {
     const data = await apiPost("/api/invitations", payload);
     syncResolvedRole(data.role);
     state.invitations = data;
     renderInvitations(data);
     switchView("invitation");
+    return true;
   } catch (err) {
     alert(err.message || "请求失败");
+    return false;
+  }
+}
+
+async function fetchInvitations() {
+  if (!ensureRoleSelection()) {
+    return;
+  }
+  els.toInvitationsBtn.disabled = true;
+  try {
+    await postInvitationsAndNavigate();
   } finally {
     els.toInvitationsBtn.disabled = false;
   }
@@ -559,10 +671,58 @@ function renderInvitations(data) {
  * Step 3：面试会议
  * ================================================================ */
 
+const JOINING_MEETING_TIPS = ["正在连接会议…", "正在同步音视频…", "即将进入面试间…"];
+let joiningMeetingTipTimer = null;
+let joiningMeetingTipIndex = 0;
+
+function showJoiningMeetingOverlay() {
+  const overlay = els.joiningMeetingOverlay;
+  if (!overlay) return;
+  document.body.classList.add("joining-meeting-active");
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden", "false");
+  overlay.setAttribute("aria-busy", "true");
+  joiningMeetingTipIndex = 0;
+  if (els.joiningMeetingSub) {
+    els.joiningMeetingSub.textContent = JOINING_MEETING_TIPS[0];
+  }
+  if (joiningMeetingTipTimer != null) {
+    clearInterval(joiningMeetingTipTimer);
+  }
+  joiningMeetingTipTimer = window.setInterval(() => {
+    joiningMeetingTipIndex = (joiningMeetingTipIndex + 1) % JOINING_MEETING_TIPS.length;
+    if (els.joiningMeetingSub) {
+      els.joiningMeetingSub.textContent = JOINING_MEETING_TIPS[joiningMeetingTipIndex];
+    }
+  }, 1200);
+}
+
+function hideJoiningMeetingOverlay() {
+  if (joiningMeetingTipTimer != null) {
+    clearInterval(joiningMeetingTipTimer);
+    joiningMeetingTipTimer = null;
+  }
+  document.body.classList.remove("joining-meeting-active");
+  const overlay = els.joiningMeetingOverlay;
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+  overlay.setAttribute("aria-hidden", "true");
+  overlay.removeAttribute("aria-busy");
+}
+
+function awaitDoubleRaf() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resolve);
+    });
+  });
+}
+
 async function startInterview(interviewerId) {
-  await detectTTSMode();
-  const payload = { ...buildResumePayload(), interviewerId };
+  showJoiningMeetingOverlay();
   try {
+    await detectTTSMode();
+    const payload = { ...buildResumePayload(), interviewerId };
     const descriptor = await apiPost("/api/session/start", payload);
     state.session = descriptor;
     switchView("meeting");
@@ -575,8 +735,12 @@ async function startInterview(interviewerId) {
     }
     startMeetingClock();
     applyDescriptor(descriptor);
+    await awaitDoubleRaf();
   } catch (err) {
+    hideJoiningMeetingOverlay();
     alert(err.message || "开始面试失败");
+  } finally {
+    hideJoiningMeetingOverlay();
   }
 }
 
@@ -1179,6 +1343,7 @@ function beginGame() {
   if (state.selectedInterviewTrack !== "technical") {
     state.selectedInterviewTrack = "technical";
   }
+  resetTechnicalRecommendationState({ rerender: false });
   els.startView?.classList.remove("active");
   els.startView?.classList.add("hidden");
   switchView("resume");
@@ -1188,13 +1353,17 @@ function beginGame() {
 function bindRecruitChrome() {
   if (els.tabJob) {
     els.tabJob.addEventListener("click", () => {
-      beginGame();
+      if (els.startView?.classList.contains("active")) {
+        beginGame();
+        return;
+      }
+      switchView("resume");
     });
   }
   if (els.tabChat) {
     els.tabChat.addEventListener("click", () => {
       if (!state.invitations || state.invitations.comingSoon) {
-        alert("请先在「求职」里完善简历并点击「完善并投递 · 收取新招呼」。");
+        alert("请先在「求职」里上传简历、生成推荐岗位，并点击岗位卡片进入沟通。");
         switchView("resume");
         return;
       }
@@ -1275,17 +1444,21 @@ function switchView(view) {
 function resetAll() {
   state.session = null;
   state.invitations = null;
+  state.invitationsLoading = false;
   state.selectedRoleMode = "preset";
-  state.roleConfirmed = false;
+  state.resumeMode = "custom";
   els.startView?.classList.add("hidden");
   els.startView?.classList.remove("active");
   state.customRoleTitle = "";
   state.selectedInterviewTrack = state.bootstrap?.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
-  if (state.selectedInterviewTrack === "technical" && state.bootstrap?.technicalRoles?.length) {
-    state.selectedRoleId = state.bootstrap.technicalRoles[0].id;
-  } else {
+  resetTechnicalRecommendationState({ rerender: false });
+  if (state.selectedInterviewTrack !== "technical") {
     state.selectedRoleId = null;
   }
+  els.resumeText.value = "";
+  els.modeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === "custom");
+  });
   renderTrackMode();
   renderRoles();
   renderInterviewTracks();
@@ -1304,17 +1477,20 @@ function resetAll() {
   switchView("resume");
 }
 
-function buildResumePayload() {
+function buildResumePayload(overrides = {}) {
   const isTechnical = state.selectedInterviewTrack === "technical";
+  const resolvedRoleId = isTechnical
+    ? (overrides.roleId ?? state.selectedRoleId ?? getDefaultTechnicalRole()?.id ?? "")
+    : "";
   return {
     themeKeyword: "",
-    roleId: isTechnical ? state.selectedRoleId : "",
+    roleId: resolvedRoleId,
     roleTitle: "",
     roleMode: isTechnical ? "preset" : "interviewer-owned",
     interviewTrack: state.selectedInterviewTrack,
-    difficulty: state.selectedDifficulty,
-    resumeMode: state.resumeMode,
-    resumeText: isTechnical ? els.resumeText.value.trim() : "",
+    difficulty: "normal",
+    resumeMode: overrides.resumeMode ?? state.resumeMode,
+    resumeText: isTechnical ? (overrides.resumeText ?? els.resumeText.value.trim()) : "",
   };
 }
 
@@ -1337,6 +1513,129 @@ function syncResolvedRole(role) {
   state.roleConfirmed = true;
   renderRoles();
   renderRoleDependentSections();
+}
+
+function getTechnicalRoleLibrary() {
+  return state.bootstrap?.technicalRoles || state.bootstrap?.roles || [];
+}
+
+function getDefaultTechnicalRole() {
+  return getTechnicalRoleLibrary()[0] || null;
+}
+
+function getSelectedTechnicalRecommendation() {
+  return (state.recommendedJobs || []).find((item) => (
+    item.role.id === state.selectedRoleId && item.company === state.selectedCompanyName
+  )) || null;
+}
+
+function hasTechnicalResumeText() {
+  return state.selectedInterviewTrack !== "technical" || Boolean(els.resumeText.value.trim());
+}
+
+function handleResumeTextChange() {
+  if (state.selectedInterviewTrack !== "technical") {
+    return;
+  }
+  if (!(state.recommendedJobs || []).length && !state.roleConfirmed && !state.selectedCompanyName) {
+    renderRoleDependentSections();
+    return;
+  }
+  resetTechnicalRecommendationState();
+  renderRoleDependentSections();
+}
+
+function resetTechnicalRecommendationState(options = {}) {
+  const { rerender = true } = options;
+  state.invitationsLoading = false;
+  state.recommendedJobs = [];
+  state.selectedCompanyName = "";
+  state.roleConfirmed = false;
+  if (state.selectedInterviewTrack === "technical") {
+    state.selectedRoleId = getDefaultTechnicalRole()?.id ?? null;
+  }
+  if (rerender) {
+    renderRoles();
+    renderRoleDependentSections();
+  }
+}
+
+function pickMockResumeRoleId() {
+  const selected = getSelectedTechnicalRecommendation();
+  if (selected?.role?.id) {
+    return selected.role.id;
+  }
+  return state.selectedRoleId || getDefaultTechnicalRole()?.id || "";
+}
+
+function buildTechnicalRecommendations(resumeText) {
+  const roles = getTechnicalRoleLibrary();
+  if (!roles.length) {
+    return [];
+  }
+
+  const ranked = roles
+    .map((role) => scoreTechnicalRoleAgainstResume(role, resumeText))
+    .sort((left, right) => (
+      right.score - left.score
+      || right.matches.length - left.matches.length
+      || left.role.title.localeCompare(right.role.title, "zh-CN")
+    ));
+
+  const uniqueRanked = [];
+  const usedIds = new Set();
+  ranked.forEach((item) => {
+    if (usedIds.has(item.role.id)) return;
+    uniqueRanked.push(item);
+    usedIds.add(item.role.id);
+  });
+
+  const pool = uniqueRanked.length ? uniqueRanked : ranked;
+  return TECH_COMPANY_NAMES.map((company, index) => {
+    const picked = pool[index % pool.length];
+    return {
+      company,
+      role: picked.role,
+      score: picked.score,
+      matches: picked.matches.slice(0, 3),
+      reason: picked.matches.length
+        ? `简历里命中了 ${picked.matches.slice(0, 3).join("、")}，推荐你优先尝试这个方向。`
+        : `根据你的简历背景，${picked.role.title} 适合作为本轮技术面的推荐方向。`,
+    };
+  });
+}
+
+function scoreTechnicalRoleAgainstResume(role, resumeText) {
+  const loweredResume = String(resumeText || "").toLowerCase();
+  const candidates = [
+    ...(Array.isArray(role.keywords) ? role.keywords : []),
+    ...(TECH_ROLE_HINTS[role.id] || []),
+    role.title,
+    role.title.replace(/工程师|开发|方向|岗位/g, ""),
+  ]
+    .map((item) => String(item || "").trim())
+    .filter((item, index, array) => item && array.indexOf(item) === index);
+
+  const matches = [];
+  let score = 0;
+
+  candidates.forEach((token) => {
+    const loweredToken = token.toLowerCase();
+    if (!loweredToken || !loweredResume.includes(loweredToken)) {
+      return;
+    }
+    matches.push(token);
+    score += (role.keywords || []).includes(token) ? 4 : 2;
+    if (token === role.title) {
+      score += 2;
+    }
+  });
+
+  return {
+    role,
+    score,
+    matches,
+  };
 }
 
 function speakerLabel(type) {
