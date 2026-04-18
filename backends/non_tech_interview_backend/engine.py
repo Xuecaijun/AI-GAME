@@ -1,13 +1,51 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 import random
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
-from backend.interviewers import all_interviewers, get_interviewer, public_card
 from backends.tech_interview_backend.ai_client import AIClient
+from backends.tech_interview_backend.interviewers import (
+    all_interviewers as base_all_interviewers,
+    get_interviewer as base_get_interviewer,
+    public_card as base_public_card,
+)
+
+try:
+    # Optional extra pool from local custom directory
+    from backend.interviewers import all_interviewers as extra_all_interviewers
+except Exception:  # noqa: BLE001
+    extra_all_interviewers = None
+
+
+def _load_legacy_interviewers() -> list[dict[str, Any]]:
+    """Load optional legacy interviewer files from ./backend/interviewers/*.py."""
+
+    root = Path(__file__).resolve().parents[2]
+    legacy_dir = root / "backend" / "interviewers"
+    if not legacy_dir.exists():
+        return []
+
+    loaded: list[dict[str, Any]] = []
+    for path in legacy_dir.glob("*.py"):
+        if path.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(f"legacy_nontech_{path.stem}", path)
+            if not spec or not spec.loader:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            data = getattr(module, "INTERVIEWER", None)
+            if isinstance(data, dict) and data.get("id") and data.get("name"):
+                loaded.append(data)
+        except Exception:  # noqa: BLE001
+            continue
+    return loaded
 
 DIMENSION_KEYS = ["roleFit", "logic", "depth", "consistency", "composure", "adaptability"]
 
@@ -25,6 +63,50 @@ DIFFICULTIES = {
 }
 
 
+def _nontech_pool() -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for item in base_all_interviewers("non-technical"):
+        if item.get("featured_role"):
+            merged[str(item.get("id"))] = item
+
+    if extra_all_interviewers is not None:
+        try:
+            for item in extra_all_interviewers("non-technical"):
+                if item.get("featured_role"):
+                    merged[str(item.get("id"))] = item
+        except Exception:  # noqa: BLE001
+            pass
+
+    for item in _load_legacy_interviewers():
+        tracks = item.get("interview_tracks") or ["technical"]
+        if "non-technical" in tracks and item.get("featured_role"):
+            merged[str(item.get("id"))] = item
+
+    return list(merged.values())
+
+
+def _public_card(interviewer: dict[str, Any]) -> dict[str, Any]:
+    # base formatter first
+    card = base_public_card(interviewer)
+    # ensure avatar from source data is preserved (some registries may normalize it away)
+    card["avatar"] = str(interviewer.get("avatar") or card.get("avatar") or "")
+    return card
+
+
+def _get_nontech_interviewer(interviewer_id: str) -> dict[str, Any]:
+    iid = str(interviewer_id or "").strip()
+    pool = _nontech_pool()
+    if iid:
+        for item in pool:
+            if str(item.get("id")) == iid:
+                return item
+    # fallback to base registry behavior if possible
+    picked = base_get_interviewer(iid, "non-technical")
+    if picked.get("featured_role"):
+        return picked
+    return random.choice(pool) if pool else picked
+
+
 class GameEngine:
     def __init__(self) -> None:
         self.ai_client = AIClient()
@@ -34,12 +116,12 @@ class GameEngine:
         return str(session_id or "") in self.sessions
 
     def get_bootstrap(self) -> dict[str, Any]:
-        pool = [item for item in all_interviewers("non-technical") if item.get("featured_role")]
+        pool = _nontech_pool()
         preview = list(pool)
         random.shuffle(preview)
         preview = preview[:3]
         return {
-            "nonTechnicalInterviewers": [public_card(item) for item in preview],
+            "nonTechnicalInterviewers": [_public_card(item) for item in preview],
             "interviewTracks": [
                 {
                     "id": "non-technical",
@@ -54,9 +136,9 @@ class GameEngine:
 
     def build_invitations(self, payload: dict[str, Any]) -> dict[str, Any]:
         difficulty = self._difficulty(payload.get("difficulty", "normal"))
-        pool = [item for item in all_interviewers("non-technical") if item.get("featured_role")]
+        pool = _nontech_pool()
         if not pool:
-            raise ValueError("非技术面试官卡池为空，请检查 backend/interviewers/ 目录。")
+            raise ValueError("非技术面试官卡池为空，请检查 interviewers 目录。")
         random.shuffle(pool)
         picked = pool[:3]
         return {
@@ -70,17 +152,17 @@ class GameEngine:
             "interviewTrack": "non-technical",
             "comingSoon": False,
             "placeholder": None,
-            "invitations": [public_card(item) for item in picked],
+            "invitations": [_public_card(item) for item in picked],
         }
 
     def start_session(self, payload: dict[str, Any]) -> dict[str, Any]:
         interviewer_id = str(payload.get("interviewerId") or "").strip()
         if interviewer_id:
-            interviewer = get_interviewer(interviewer_id, "non-technical")
+            interviewer = _get_nontech_interviewer(interviewer_id)
         else:
-            candidates = [item for item in all_interviewers("non-technical") if item.get("featured_role")]
+            candidates = _nontech_pool()
             if not candidates:
-                raise ValueError("非技术面试官卡池为空，请检查 backend/interviewers/ 目录。")
+                raise ValueError("非技术面试官卡池为空，请检查 interviewers 目录。")
             interviewer = random.choice(candidates)
 
         if not interviewer.get("featured_role"):
@@ -225,7 +307,7 @@ class GameEngine:
         session["currentPhase"] = phase
         selected = {
             "role": session["role"],
-            "interviewer": public_card(session["interviewer"]),
+            "interviewer": _public_card(session["interviewer"]),
             "difficulty": session["difficulty"],
             "themeKeyword": "",
             "resumeMode": "none",
