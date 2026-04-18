@@ -55,6 +55,7 @@ WRONG_PENALTY = 30
 HINT_PENALTY = 8
 TIMEOUT_SCORE = 10
 MAX_HINTS = 2
+PREVIEW_PRIORITY_IDS = ["master-strategist", "queen-of-order", "detective-kid"]
 
 DIFFICULTIES = {
     "easy": {"id": "easy", "label": "轻松", "description": "追问温和，节奏较慢", "max_turns": 3, "starting_stress": 15},
@@ -62,7 +63,7 @@ DIFFICULTIES = {
     "hard": {"id": "hard", "label": "硬核", "description": "追问更紧，容错更低", "max_turns": 5, "starting_stress": 30},
 }
 
-
+def _preview_nontech_pool(limit: int = 3) -> list[dict[str, Any]]:
 def _nontech_pool() -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for item in base_all_interviewers("non-technical"):
@@ -106,6 +107,28 @@ def _get_nontech_interviewer(interviewer_id: str) -> dict[str, Any]:
         return picked
     return random.choice(pool) if pool else picked
 
+def _preview_nontech_pool(limit: int = 3) -> list[dict[str, Any]]:
+    pool = _nontech_pool()
+    if not pool:
+        return []
+
+    by_id = {str(item.get("id")): item for item in pool}
+    preview: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for interviewer_id in PREVIEW_PRIORITY_IDS:
+        item = by_id.get(interviewer_id)
+        if not item:
+            continue
+        preview.append(item)
+        seen.add(interviewer_id)
+
+    remaining = sorted(
+        (item for item in pool if str(item.get("id")) not in seen),
+        key=lambda item: (int(item.get("order", 999)), str(item.get("id", ""))),
+    )
+    preview.extend(remaining)
+    return preview[:limit]
 
 class GameEngine:
     def __init__(self) -> None:
@@ -116,10 +139,7 @@ class GameEngine:
         return str(session_id or "") in self.sessions
 
     def get_bootstrap(self) -> dict[str, Any]:
-        pool = _nontech_pool()
-        preview = list(pool)
-        random.shuffle(preview)
-        preview = preview[:3]
+        preview = _preview_nontech_pool()
         return {
             "nonTechnicalInterviewers": [_public_card(item) for item in preview],
             "interviewTracks": [
@@ -196,6 +216,7 @@ class GameEngine:
             "totalRounds": total_rounds,
             "drillDepth": 0,
             "hintsUsed": 0,
+            "hintHistory": [],
             "currentQuestion": first["q"],
             "currentQuestionType": "normal",
             "currentQuestionKind": "workplace",
@@ -241,6 +262,7 @@ class GameEngine:
             session["hintsUsed"] += 1
             session["roundScore"] = max(0, session["roundScore"] - HINT_PENALTY)
             hint = self._build_hint(session)
+            session.setdefault("hintHistory", []).append(hint)
             session["transcript"].append({"speaker": "interviewer", "text": hint})
             return self._descriptor(
                 session,
@@ -257,6 +279,7 @@ class GameEngine:
         nxt = self._pick_question(session["interviewer"], used=session["usedQuestions"])
         session["drillDepth"] = 0
         session["hintsUsed"] = 0
+        session["hintHistory"] = []
         session["roundScore"] = ROUND_BASE_SCORE
         session["currentQuestion"] = nxt["q"]
         session["currentHintDirections"] = nxt.get("hint_directions", [])
@@ -276,6 +299,7 @@ class GameEngine:
         nxt = self._pick_question(session["interviewer"], used=session["usedQuestions"])
         session["drillDepth"] = 0
         session["hintsUsed"] = 0
+        session["hintHistory"] = []
         session["roundScore"] = ROUND_BASE_SCORE
         session["currentQuestion"] = nxt["q"]
         session["currentHintDirections"] = nxt.get("hint_directions", [])
@@ -417,9 +441,52 @@ class GameEngine:
 
     def _build_hint(self, session: dict[str, Any]) -> str:
         directions = [str(item) for item in session.get("currentHintDirections", []) if str(item).strip()]
-        if directions:
-            return f"提示：别空谈，至少回答这三点——{'、'.join(directions[:3])}。"
-        return "提示：先给判断，再给步骤，最后给兜底方案。"
+        interviewer_id = str(session["interviewer"].get("id") or "")
+        topic = str(session.get("currentTopic") or "这题").strip()
+        answer = self._latest_candidate_text(session)
+        anchor = self._answer_anchor(answer)
+        focus = directions[0] if directions else ""
+        variants_by_persona = {
+            "master-strategist": [
+                f"你刚才提到“{anchor}”，但我还没听到你怎么把{topic}真正排进局里。别铺太大，顺着你最先动的那一步往下说。",
+                f"先别把话说满。围绕“{focus or topic}”补一句：你到底先稳什么、动谁、怎么防局势反噬？",
+            ],
+            "queen-of-order": [
+                f"你这段里态度有了，但“{focus or topic}”还没落到掌控上。我想听你怎么定规则、压分歧、让人照着执行。",
+                f"别急着讲大道理，顺着“{anchor}”往下说清楚：真到现场有人不服，你怎么把{topic}压进秩序里？",
+            ],
+            "detective-kid": [
+                f"你先别急着下结论。围绕“{anchor}”补一口证据链给我听，尤其是你拿什么验证“{focus or topic}”。",
+                f"我现在听到的是判断，还没听到你怎么证明。顺着“{focus or topic}”说说，哪条线索最先让你确认方向？",
+            ],
+            "jackeylove": [
+                f"你这波像在报想法，还不像在打配合。围绕“{focus or topic}”说清楚，你先给什么信号、队友怎么接、谁来兜底。",
+                f"别只说能打。你刚才那句“{anchor}”落地以后，下路语音里第一句会怎么报？",
+            ],
+            "song-jiang": [
+                f"这话能听，但还没把人心和分工拢住。顺着“{focus or topic}”说，你先安谁、先定谁、再怎么让大家服气。",
+                f"别只讲义气，讲安排。围绕“{anchor}”补一句：真要你来扛这摊子，第一步你会先稳住哪拨人？",
+            ],
+            "sun-wukong": [
+                f"别绕，直接说破局手。围绕“{focus or topic}”讲你先试哪一下，不成再怎么变招。",
+                f"你刚才那句“{anchor}”像个念头，还不像招。给我补清楚：真撞上硬仗，你第一反应怎么动？",
+            ],
+            "donald-trump": [
+                f"这段有气势，但筹码还没亮出来。顺着“{focus or topic}”说，你拿什么逼对面给反应？",
+                f"别只说你会谈。围绕“{anchor}”补清楚，这件事里你的 leverage 到底是什么，怎么把场子带回你手里？",
+            ],
+        }
+        variants = variants_by_persona.get(
+            interviewer_id,
+            [
+                f"你刚才这段还差一点落地。别改成分点背稿，顺着“{focus or topic}”往下说清楚你会怎么做。",
+                f"我现在听到的是方向，还没听到现场动作。围绕“{anchor}”补一句：真轮到你拍板，第一步怎么落？",
+            ],
+        )
+        for variant in variants:
+            if not self._hint_seen(session, variant):
+                return variant
+        return variants[-1]
 
     def _pick_question(self, interviewer: dict[str, Any], used: list[str]) -> dict[str, Any]:
         bank = interviewer.get("question_bank") or []
@@ -474,3 +541,26 @@ class GameEngine:
     def _difficulty(self, value: Any) -> dict[str, Any]:
         key = str(value or "normal").strip()
         return DIFFICULTIES.get(key, DIFFICULTIES["normal"])
+
+    def _latest_candidate_text(self, session: dict[str, Any]) -> str:
+        for item in reversed(session.get("transcript", [])):
+            if item.get("speaker") == "candidate":
+                return str(item.get("text") or "").strip()
+        return ""
+
+    def _answer_anchor(self, text: str) -> str:
+        compact = " ".join(str(text or "").split())
+        return compact[:16] if compact else "你刚才的说法"
+
+    def _hint_seen(self, session: dict[str, Any], hint: str) -> bool:
+        normalized_hint = self._normalize_free_text(hint)
+        if not normalized_hint:
+            return False
+        return normalized_hint in {
+            self._normalize_free_text(item)
+            for item in session.get("hintHistory", [])
+            if str(item).strip()
+        }
+
+    def _normalize_free_text(self, text: str) -> str:
+        return "".join(ch.lower() for ch in str(text or "") if ch.isalnum())
