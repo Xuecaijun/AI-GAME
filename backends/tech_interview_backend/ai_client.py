@@ -23,11 +23,15 @@ class AIClientError(RuntimeError):
     pass
 
 
+_DEFAULT_OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+_DEFAULT_OPENROUTER_MODEL = "z-ai/glm-5.1"
+
+
 class AIClient:
     def __init__(self) -> None:
-        self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
-        self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-        self.model = os.getenv("OPENAI_MODEL", "").strip()
+        self.api_key = os.getenv("OPENAI_API_KEY", "").strip() or os.getenv("OPENROUTER_API_KEY", "").strip()
+        self.base_url = os.getenv("OPENAI_BASE_URL", _DEFAULT_OPENROUTER_BASE).rstrip("/")
+        self.model = os.getenv("OPENAI_MODEL", _DEFAULT_OPENROUTER_MODEL).strip()
         self.force_mock = os.getenv("AI_GAME_FORCE_MOCK", "0").strip() == "1"
 
     @property
@@ -39,7 +43,7 @@ class AIClient:
             return {"mode": "mock", "reason": "AI_GAME_FORCE_MOCK=1"}
         if self.configured:
             return {"mode": "llm", "reason": f"已配置模型 {self.model}"}
-        return {"mode": "mock", "reason": "未检测到 OPENAI_API_KEY / OPENAI_MODEL"}
+        return {"mode": "mock", "reason": "未检测到 OPENAI_API_KEY / OPENROUTER_API_KEY（OpenRouter 密钥）或未配置模型"}
 
     def parse_resume(self, context: dict[str, Any]) -> dict[str, Any]:
         system_prompt, user_prompt = build_resume_profile_prompts(
@@ -95,13 +99,21 @@ class AIClient:
         }
 
         body = json.dumps(payload).encode("utf-8")
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        referer = os.getenv("OPENROUTER_HTTP_REFERER", "").strip()
+        if referer:
+            headers["HTTP-Referer"] = referer
+        app_title = os.getenv("OPENROUTER_X_TITLE", "").strip()
+        if app_title:
+            headers["X-Title"] = app_title
+
         req = request.Request(
             url=f"{self.base_url}/chat/completions",
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
+            headers=headers,
             method="POST",
         )
 

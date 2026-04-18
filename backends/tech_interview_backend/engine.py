@@ -133,7 +133,7 @@ class GameEngine:
         if interview_track != "technical":
             picked = list(all_interviewers("non-technical"))
             if not picked:
-                raise ValueError("非技术面试官卡池为空，请检查 backend/interviewers/ 目录。")
+                raise ValueError("非技术面试官卡池为空，请检查 backends/tech_interview_backend/interviewers/ 目录。")
             return {
                 "role": None,
                 "difficulty": difficulty,
@@ -156,7 +156,7 @@ class GameEngine:
 
         all_items = list(all_interviewers("technical"))
         if not all_items:
-            raise ValueError("面试官池为空，请检查 backend/interviewers/ 目录。")
+            raise ValueError("面试官池为空，请检查 backends/tech_interview_backend/interviewers/ 目录。")
 
         count = min(3, len(all_items))
         random.shuffle(all_items)
