@@ -34,18 +34,31 @@ def _load() -> None:
     INTERVIEWER_REGISTRY.sort(key=lambda item: item.get("order", 100))
 
 
-def all_interviewers() -> list[dict[str, Any]]:
+def _supports_track(interviewer: dict[str, Any], interview_track: str = "") -> bool:
+    tracks = interviewer.get("interview_tracks") or ["technical"]
+    normalized_track = (interview_track or "").strip()
+    if not normalized_track:
+        return True
+    return normalized_track in tracks
+
+
+def all_interviewers(interview_track: str = "") -> list[dict[str, Any]]:
     if not INTERVIEWER_REGISTRY:
         _load()
-    return INTERVIEWER_REGISTRY
+    if not interview_track:
+        return INTERVIEWER_REGISTRY
+    return [item for item in INTERVIEWER_REGISTRY if _supports_track(item, interview_track)]
 
 
-def get_interviewer(interviewer_id: str) -> dict[str, Any]:
+def get_interviewer(interviewer_id: str, interview_track: str = "") -> dict[str, Any]:
     if not INTERVIEWER_REGISTRY:
         _load()
     if interviewer_id in _REGISTRY_BY_ID:
-        return _REGISTRY_BY_ID[interviewer_id]
-    return INTERVIEWER_REGISTRY[0]
+        interviewer = _REGISTRY_BY_ID[interviewer_id]
+        if not interview_track or _supports_track(interviewer, interview_track):
+            return interviewer
+    candidates = all_interviewers(interview_track)
+    return candidates[0] if candidates else INTERVIEWER_REGISTRY[0]
 
 
 def public_card(interviewer: dict[str, Any]) -> dict[str, Any]:
@@ -56,12 +69,16 @@ def public_card(interviewer: dict[str, Any]) -> dict[str, Any]:
         "name": interviewer["name"],
         "avatar": interviewer.get("avatar", ""),
         "title": interviewer.get("title", ""),
+        "identity": interviewer.get("identity", interviewer.get("title", "")),
         "style": interviewer.get("style", ""),
         "tone": interviewer.get("tone", ""),
         "opening_line": interviewer.get("opening_line", ""),
         "pass_score": interviewer.get("pass_score", 70),
         "tags": interviewer.get("tags", []),
         "invitation_copy": interviewer.get("invitation_copy", ""),
+        "interview_tracks": list(interviewer.get("interview_tracks", ["technical"])),
+        "featured_role": interviewer.get("featured_role"),
+        "card_hint": interviewer.get("card_hint", ""),
     }
 
 
