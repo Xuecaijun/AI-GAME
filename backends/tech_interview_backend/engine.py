@@ -611,6 +611,8 @@ class GameEngine:
             "role": session["role"],
             "interviewer": {
                 "id": session["interviewer"]["id"],
+                "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                 "style": session["interviewer"]["style"],
                 "tone": session["interviewer"]["tone"],
             },
@@ -669,6 +671,8 @@ class GameEngine:
             "role": session["role"],
             "interviewer": {
                 "id": session["interviewer"]["id"],
+                "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                 "style": session["interviewer"]["style"],
                 "tone": session["interviewer"]["tone"],
             },
@@ -961,6 +965,8 @@ class GameEngine:
             "role": session["role"],
             "interviewer": {
                 "id": session["interviewer"]["id"],
+                "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                 "style": session["interviewer"]["style"],
                 "tone": session["interviewer"]["tone"],
             },
@@ -1048,6 +1054,8 @@ class GameEngine:
             "role": session["role"],
             "interviewer": {
                 "id": session["interviewer"]["id"],
+                "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                 "style": session["interviewer"]["style"],
                 "tone": session["interviewer"]["tone"],
             },
@@ -1155,6 +1163,8 @@ class GameEngine:
                     "role": session["role"],
                     "interviewer": {
                         "id": session["interviewer"]["id"],
+                        "name": session["interviewer"]["name"],
+                        "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                         "style": session["interviewer"]["style"],
                         "tone": session["interviewer"]["tone"],
                     },
@@ -1256,6 +1266,8 @@ class GameEngine:
             "role": session["role"],
             "interviewer": {
                 "id": session["interviewer"]["id"],
+                "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                 "style": session["interviewer"]["style"],
                 "tone": session["interviewer"]["tone"],
             },
@@ -1322,6 +1334,8 @@ class GameEngine:
             "role": role,
             "interviewer": {
                 "id": interviewer["id"],
+                "name": interviewer["name"],
+                "identity": interviewer.get("identity", interviewer.get("title", "")),
                 "style": interviewer["style"],
                 "tone": interviewer["tone"],
             },
@@ -1411,7 +1425,9 @@ class GameEngine:
             "interviewer": {
                 "id": session["interviewer"]["id"],
                 "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
                 "style": session["interviewer"]["style"],
+                "tone": session["interviewer"]["tone"],
             },
             "difficulty": session["difficulty"],
             "sessionScore": session_score,
@@ -1420,6 +1436,7 @@ class GameEngine:
             "roundScores": session["roundScores"],
             "dimensions": session["dimensions"],
             "analysis": session["analysis"],
+            "transcript": self._summary_transcript(session),
             "forcedEndReason": forced_end_reason,
         }
 
@@ -1461,6 +1478,7 @@ class GameEngine:
             "interviewer": {
                 "id": session["interviewer"]["id"],
                 "name": session["interviewer"]["name"],
+                "identity": session["interviewer"].get("identity", session["interviewer"].get("title", "")),
             },
             "difficulty": session["difficulty"],
             "sessionScore": session_score,
@@ -1514,6 +1532,21 @@ class GameEngine:
             "shareLines": [str(item) for item in payload.get("shareLines", [])][:3],
         }
 
+    def _summary_transcript(self, session: dict[str, Any], limit: int = 18) -> list[dict[str, str]]:
+        transcript = session.get("transcript", [])
+        if not isinstance(transcript, list) or not transcript:
+            return []
+
+        trimmed: list[dict[str, str]] = []
+        for item in transcript[-limit:]:
+            if not isinstance(item, dict):
+                continue
+            speaker = str(item.get("speaker", "")).strip()
+            text = str(item.get("text", "")).strip()
+            if speaker and text:
+                trimmed.append({"speaker": speaker, "text": text})
+        return trimmed
+
     def _local_final_report(
         self,
         session: dict[str, Any],
@@ -1527,9 +1560,19 @@ class GameEngine:
             best = worst = {"question": "（无）", "score": 0}
 
         if verdict == "offer":
-            summary = "整体表现稳，关键轮次给出了具体动作、依据和结果。"
+            summary = "这场不是靠运气混过去的，你在关键题上能把动作、依据和取舍讲明白，面试官能听出你是真做过。"
+            share_lines = [
+                f"{session['role']['title']} 这场我过了，综合分 {session_score}。",
+                f"通过线 {session['interviewer'].get('pass_score', 70)}，这次回答总算没只停在嘴上。",
+                "今天这场不像背题，更像把真经验讲到面试官点头。",
+            ]
         else:
-            summary = "回答缺少支撑，逻辑和一致性不够稳定，没能撑住连续追问。"
+            summary = "这场主要输在回答只到表层，一被追问就开始打滑，细节、边界和前后自洽性都没顶住。"
+            share_lines = [
+                f"{session['role']['title']} 这场没过，综合分 {session_score}。",
+                f"通过线 {session['interviewer'].get('pass_score', 70)}，面试官追两层我就有点露怯。",
+                "回去得补原理、补细节、补自洽，下次不能再把会一点讲成做过了。",
+            ]
 
         return {
             "summary": summary,
@@ -1537,11 +1580,7 @@ class GameEngine:
             "highlight": f"第 {best['round']} 轮（{best['score']} 分）题目：{best['question']}" if "round" in best else best["question"],
             "flop": f"第 {worst['round']} 轮（{worst['score']} 分）题目：{worst['question']}" if "round" in worst else worst["question"],
             "tips": self._build_tips(session),
-            "shareLines": [
-                f"{session['role']['title']} 面试结果：{'Offer' if verdict == 'offer' else '未录用'}",
-                f"综合分 {session_score}，通过线 {session['interviewer'].get('pass_score', 70)}",
-                session["analysis"]["themeBlurb"],
-            ],
+            "shareLines": share_lines,
         }
 
     def _resolve_session_role(

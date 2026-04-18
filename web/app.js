@@ -50,6 +50,19 @@ const TECH_ROLE_HINTS = {
   "test-engineer": ["测试", "自动化测试", "qa", "回归", "ci", "接口测试", "质量保障"],
 };
 
+const INTERVIEWER_FILLERS = [
+  "嗯，我看一下。",
+  "稍等，我捋一捋你的思路。",
+  "好，我想一下你这段回答。",
+  "行，我先过一遍重点。",
+  "嗯，这里我确认一下细节。",
+  "让我对一下你刚才提到的点。",
+  "好，等我组织一下下一问。",
+  "嗯，你这段我先消化一下。",
+  "我看下你这个说法落在哪个点上。",
+  "稍等，我顺着你的回答往下想一下。",
+];
+
 const el = (id) => document.getElementById(id);
 
 const els = {
@@ -815,6 +828,76 @@ function renderTranscript(transcript) {
   state._speakingTimeout = setTimeout(() => els.tileInterviewer.classList.remove("speaking"), 2200);
 }
 
+function pickInterviewerFiller() {
+  const interviewerId = state.session?.selected?.interviewer?.id || "";
+  const roleTitle = state.session?.selected?.role?.title || "";
+
+  if (interviewerId === "master-strategist") {
+    const options = [
+      "嗯，我先盘一下你这步棋。",
+      "稍等，我看看你这段话的落点。",
+      "好，我把前后的逻辑串一下。",
+    ];
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  if (roleTitle && /前端|后端|算法|测试|客户端|全栈|AI/i.test(roleTitle)) {
+    const options = [
+      "嗯，我先对一下你这个技术点。",
+      "稍等，我看下你这个回答落没落到关键处。",
+      "好，我顺着你这个实现往下想一下。",
+    ];
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  return INTERVIEWER_FILLERS[Math.floor(Math.random() * INTERVIEWER_FILLERS.length)];
+}
+
+function showInterviewerFillerBubble(text) {
+  if (!els.transcript || !text) return null;
+  const bubble = document.createElement("article");
+  bubble.className = "bubble message-bubble interviewer";
+  bubble.dataset.filler = "true";
+
+  const label = document.createElement("span");
+  label.className = "bubble-label";
+  label.textContent = speakerLabel("interviewer");
+
+  const content = document.createElement("div");
+  content.textContent = text;
+
+  bubble.append(label, content);
+  els.transcript.appendChild(bubble);
+  els.transcript.scrollTop = els.transcript.scrollHeight;
+  els.tileInterviewer.classList.add("speaking");
+  clearTimeout(state._speakingTimeout);
+  state._speakingTimeout = setTimeout(() => els.tileInterviewer.classList.remove("speaking"), 2200);
+  return bubble;
+}
+
+function beginInterviewerThinking() {
+  const pending = {
+    timer: null,
+    bubble: null,
+  };
+
+  pending.timer = setTimeout(() => {
+    pending.bubble = showInterviewerFillerBubble(pickInterviewerFiller());
+  }, 450);
+
+  return pending;
+}
+
+function endInterviewerThinking(pending) {
+  if (!pending) return;
+  if (pending.timer) {
+    clearTimeout(pending.timer);
+  }
+  if (pending.bubble?.parentNode) {
+    pending.bubble.parentNode.removeChild(pending.bubble);
+  }
+}
+
 function toggleAnswerMode(mode) {
   const isCode = mode === "code";
   els.answerDock.classList.toggle("hidden", isCode);
@@ -1003,6 +1086,7 @@ async function submitAnswer() {
   }
   stopAnswerTimer();
   els.submitAnswerBtn.disabled = true;
+  const pendingThinking = beginInterviewerThinking();
   try {
     const descriptor = await apiPost("/api/session/answer", {
       sessionId: state.session.sessionId,
@@ -1012,6 +1096,8 @@ async function submitAnswer() {
   } catch (err) {
     alert(err.message || "提交失败");
     els.submitAnswerBtn.disabled = false;
+  } finally {
+    endInterviewerThinking(pendingThinking);
   }
 }
 
@@ -1022,6 +1108,7 @@ async function submitCodeAnswer() {
   }
   stopAnswerTimer();
   els.codeSubmitBtn.disabled = true;
+  const pendingThinking = beginInterviewerThinking();
   try {
     const descriptor = await apiPost("/api/session/answer", {
       sessionId: state.session.sessionId,
@@ -1031,6 +1118,8 @@ async function submitCodeAnswer() {
   } catch (err) {
     alert(err.message || "提交失败");
     els.codeSubmitBtn.disabled = false;
+  } finally {
+    endInterviewerThinking(pendingThinking);
   }
 }
 
@@ -1038,6 +1127,7 @@ async function submitTimeout() {
   if (!state.session) return;
   els.submitAnswerBtn.disabled = true;
   els.codeSubmitBtn.disabled = true;
+  const pendingThinking = beginInterviewerThinking();
   try {
     const descriptor = await apiPost("/api/session/timeout", {
       sessionId: state.session.sessionId,
@@ -1047,6 +1137,8 @@ async function submitTimeout() {
     console.error(err);
     els.submitAnswerBtn.disabled = false;
     els.codeSubmitBtn.disabled = false;
+  } finally {
+    endInterviewerThinking(pendingThinking);
   }
 }
 
