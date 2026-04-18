@@ -1961,11 +1961,13 @@ function avatarMarkup(interviewer, className = "invitation-avatar") {
   const src = String(interviewer?.avatar || "").trim();
   const initial = escapeHtml(initialOf(interviewer?.name || ""));
   const label = escapeHtml(interviewer?.name || "面试官");
+  const imgStyle = className.includes("boss-invite-avatar")
+    ? `object-position: ${escapeHtml(avatarObjectPosition(interviewer?.id))};`
+    : `object-position: center;`;
   if (src) {
-    const pos = avatarObjectPosition(interviewer?.id);
     return `
       <div class="${className} has-image">
-        <img src="${escapeHtml(src)}" alt="${label}形象" loading="lazy" style="object-position: ${escapeHtml(pos)};" />
+        <img src="${escapeHtml(src)}" alt="${label}形象" loading="lazy" style="${imgStyle}" />
       </div>
     `;
   }

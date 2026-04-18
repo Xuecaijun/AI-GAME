@@ -64,6 +64,29 @@ DIFFICULTIES = {
 }
 
 def _preview_nontech_pool(limit: int = 3) -> list[dict[str, Any]]:
+    pool = _nontech_pool()
+    if not pool:
+        return []
+
+    by_id = {str(item.get("id")): item for item in pool}
+    preview: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for interviewer_id in PREVIEW_PRIORITY_IDS:
+        item = by_id.get(interviewer_id)
+        if not item:
+            continue
+        preview.append(item)
+        seen.add(interviewer_id)
+
+    remaining = sorted(
+        (item for item in pool if str(item.get("id")) not in seen),
+        key=lambda item: (int(item.get("order", 999)), str(item.get("id", ""))),
+    )
+    preview.extend(remaining)
+    return preview[:limit]
+
+
 def _nontech_pool() -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for item in base_all_interviewers("non-technical"):
