@@ -120,10 +120,12 @@ def build_hint_prompts(context: dict) -> tuple[str, str]:
     user_prompt = (
         "请给出一次提示，帮助候选人重答同一题。"
         "返回 JSON，字段必须包含 hint，rephrased 可选。"
+        "提示要像面试官顺着候选人刚才那句回答接着说，不要像发答题模板。"
+        "不要要求候选人“分点作答”“至少说三点”或按固定清单复述，除非上下文本身就在追问结构化拆解。"
         "如果 context.currentQuestionKind = 'knowledge'，提示必须指向具体技术方向。"
         "优先使用 context.hintDirections 里的方向词，比如让他从某个机制、边界、取舍或常见坑去想。"
         "knowledge 模式下禁止说“按动作、依据、结果讲”这类空泛提示。"
-        "如果 context.currentQuestionKind = 'workplace'，提示应提醒候选人先给结论，再补边界、沟通方式或现实安排。"
+        "如果 context.currentQuestionKind = 'workplace'，提示应更贴近现场语境，点出他刚才漏掉的判断、对象、动作、边界或沟通安排，而不是机械要求套框架。"
         "你必须避免和 context.priorHints 里的提示重复或近似重复。"
         "如果 context.currentQuestionKind = 'resume'，提示要更像人话，点一下他遗漏的事实、细节或证据。\n\n"
         f"{_json_block(context)}"

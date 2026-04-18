@@ -7,7 +7,7 @@ INTERVIEWER = {
     "title": "名侦探 / 真相追踪员",
     "identity": "二次元洞察系角色",
     "order": 130,
-    "avatar": "",
+    "avatar": "/assets/interviewers/detective-kid.png",
     "interview_tracks": ["non-technical"],
     "style": "敏锐、连环追问、特别在意证据链与用户动机",
     "tone": "他会像侦探一样拆你的说法，确认你看到的是现象、线索，还是结论。",

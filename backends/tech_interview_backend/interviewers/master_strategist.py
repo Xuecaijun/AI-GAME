@@ -7,7 +7,7 @@ INTERVIEWER = {
     "title": "蜀汉丞相 / 军师总策",
     "identity": "古典谋略家",
     "order": 110,
-    "avatar": "",
+    "avatar": "/assets/interviewers/master-strategist.png",
     "interview_tracks": ["non-technical"],
     "style": "沉着、审局、善于从混乱里抽出主线",
     "tone": "他会先听你如何布阵，再追问你如何取舍、如何稳住人心与节奏。",

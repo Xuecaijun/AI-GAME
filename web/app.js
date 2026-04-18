@@ -84,6 +84,7 @@ const els = {
   resumeContentField: el("resume-content-field"),
   startHint: document.querySelector(".start-row .muted"),
   invitationAnalysisTitle: document.querySelector("#invitation-analysis h4"),
+  invitationDiagnosis: el("invitation-diagnosis"),
 
   // invitation view
   invitationView: el("invitation-view"),
@@ -357,6 +358,9 @@ function renderTrackMode() {
       ? "系统会先分析简历，并基于你选择的岗位随机抽取 3 位技术面试官向你发起邀请。"
       : "非技术面不需要带简历。三位角色面试官会各自带着岗位卡登场，你挑中感兴趣的一张就能开面。";
   }
+  if (els.backToResumeBtn) {
+    els.backToResumeBtn.textContent = isTechnical ? "返回修改简历" : "返回选卡";
+  }
   if (!isTechnical) {
     state.resumeMode = "custom";
   }
@@ -398,14 +402,19 @@ function renderRoles() {
       card.type = "button";
       card.className = `select-card role-feed-card non-technical-preview ${role.id === state.selectedRoleId ? "active" : ""}`;
       card.innerHTML = `
-        ${avatarMarkup(interviewer, "select-card-avatar")}
-        <h4>${escapeHtml(interviewer.name)}</h4>
-        <p>${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
-        <p class="role-feed-summary">${escapeHtml(role.summary || interviewer.card_hint || "角色岗位将在下一步展示")}</p>
-        <div class="role-feed-tags">
-          ${(Array.isArray(role.keywords) ? role.keywords.slice(0, 3) : ["非技术面"]).map((tag) => `<span>${escapeHtml(String(tag))}</span>`).join("")}
+        <div class="role-feed-portrait">
+          ${avatarMarkup(interviewer, "select-card-avatar")}
         </div>
-        <small>${escapeHtml(role.title || "岗位将在下一步展示")}</small>
+        <div class="role-feed-body">
+          <span class="role-feed-kicker">非技术面试官</span>
+          <h4>${escapeHtml(interviewer.name)}</h4>
+          <p class="role-feed-identity">${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
+          <p class="role-feed-summary">${escapeHtml(role.summary || interviewer.card_hint || "角色岗位将在下一步展示")}</p>
+          <div class="role-feed-tags">
+            ${(Array.isArray(role.keywords) ? role.keywords.slice(0, 3) : ["非技术面"]).map((tag) => `<span>${escapeHtml(String(tag))}</span>`).join("")}
+          </div>
+          <small>${escapeHtml(role.title || "岗位将在下一步展示")}</small>
+        </div>
       `;
       card.addEventListener("click", () => {
         state.selectedRoleMode = "interviewer-owned";
@@ -679,6 +688,9 @@ async function fetchInvitations() {
 function renderInvitations(data) {
   const isTechnical = state.selectedInterviewTrack === "technical";
   els.invitationList.classList.toggle("nontech-rune-list", !isTechnical);
+  if (els.invitationDiagnosis) {
+    els.invitationDiagnosis.classList.toggle("hidden", !isTechnical);
+  }
   if (els.invitationAnalysisTitle) {
     els.invitationAnalysisTitle.textContent = isTechnical ? "AI 简历分析" : "今夜卡池";
   }
@@ -726,6 +738,7 @@ function renderInvitations(data) {
       : `
         <div class="nontech-rune-portrait">${avatarMarkup(interviewer, "boss-invite-avatar")}</div>
         <div class="boss-invite-main">
+          <span class="boss-invite-kicker">非技术面试官</span>
           <div class="boss-invite-top">
             <h4 class="boss-invite-name">${escapeHtml(interviewer.name)}</h4>
             <span class="boss-invite-pass">通过线 ${escapeHtml(String(interviewer.pass_score ?? ""))}</span>

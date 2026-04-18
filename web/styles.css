@@ -296,6 +296,9 @@ textarea:focus {
 
 .non-technical-preview {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
   overflow: hidden;
   border-color: rgba(108, 229, 255, 0.22);
   background:
@@ -332,6 +335,81 @@ textarea:focus {
   height: 100%;
   display: block;
   object-fit: cover;
+}
+
+.non-technical-preview .role-feed-portrait {
+  width: 100%;
+  min-height: 280px;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 220, 143, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(255, 245, 214, 0.16), rgba(255, 255, 255, 0.04));
+}
+
+.non-technical-preview .select-card-avatar {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  margin-bottom: 0;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.non-technical-preview .select-card-avatar.has-image img {
+  object-fit: contain;
+}
+
+.non-technical-preview .role-feed-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.non-technical-preview .role-feed-kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffd88a;
+  background: rgba(255, 216, 138, 0.12);
+}
+
+.non-technical-preview .role-feed-identity {
+  margin: 0;
+  color: rgba(236, 243, 255, 0.78);
+  font-size: 0.9rem;
+}
+
+.non-technical-preview h4 {
+  color: #f8fafc;
+}
+
+.non-technical-preview .role-feed-summary {
+  margin: 0;
+  color: rgba(236, 243, 255, 0.9);
+  line-clamp: unset;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.non-technical-preview .role-feed-tags span {
+  color: #dbe9ff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.non-technical-preview small {
+  margin-top: auto;
+  color: #ffd88a;
 }
 
 .start-row { margin-top: 20px; }
@@ -661,6 +739,10 @@ textarea:focus {
 .tile-video-frame {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px 16px 108px;
   overflow: hidden;
 }
 
@@ -668,7 +750,8 @@ textarea:focus {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center top;
   filter: saturate(1.05) contrast(1.02);
 }
 
@@ -746,9 +829,9 @@ textarea:focus {
 .tile-name-overlay {
   position: relative;
   z-index: 2;
-  width: calc(100% - 28px);
-  margin: auto 14px 14px;
-  padding: 12px 14px;
+  width: calc(100% - 40px);
+  margin: auto 20px 20px;
+  padding: 10px 14px;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(4, 12, 20, 0.2), rgba(4, 12, 20, 0.8));
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1277,6 +1360,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .meeting-layout { grid-template-columns: 1fr; }
   .tile-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; }
   .interviewer-tile { grid-row: auto; min-height: 260px; }
+  .tile-video-frame { padding: 14px 14px 96px; }
+  .tile-name-overlay { width: calc(100% - 28px); margin: auto 14px 14px; }
 }
 
 @media (max-width: 720px) {
@@ -1299,6 +1384,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .tile-grid { grid-template-columns: 1fr; grid-template-rows: none; }
   .interviewer-tile { min-height: 240px; }
+  .tile-video-frame { padding: 12px 12px 88px; }
+  .tile-name-overlay { width: calc(100% - 24px); margin: auto 12px 12px; }
   .meeting-bar { flex-direction: column; align-items: flex-start; }
 }
 
@@ -1947,7 +2034,7 @@ body.theme-recruit .boss-invite-list {
 
 body.theme-recruit .invitation-list.nontech-rune-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 14px;
 }
 
@@ -1979,9 +2066,9 @@ body.theme-recruit .boss-invite-avatar {
 
 body.theme-recruit .nontech-rune-card {
   flex-direction: column;
-  gap: 10px;
-  min-height: 420px;
-  padding: 12px;
+  gap: 12px;
+  min-height: 640px;
+  padding: 14px;
   border-radius: 18px;
   border: 1px solid rgba(108, 229, 255, 0.24);
   background:
@@ -1992,11 +2079,13 @@ body.theme-recruit .nontech-rune-card {
 
 body.theme-recruit .nontech-rune-portrait {
   width: 100%;
-  height: 220px;
+  height: 420px;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 220, 143, 0.18), transparent 38%),
+    rgba(255, 255, 255, 0.04);
 }
 
 body.theme-recruit .nontech-rune-portrait .boss-invite-avatar {
@@ -2010,7 +2099,11 @@ body.theme-recruit .nontech-rune-portrait .boss-invite-avatar {
 body.theme-recruit .nontech-rune-portrait .boss-invite-avatar.has-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+body.theme-recruit .diagnosis-accordion.hidden {
+  display: none;
 }
 
 body.theme-recruit .nontech-rune-job {
@@ -2018,6 +2111,18 @@ body.theme-recruit .nontech-rune-job {
   font-size: 0.84rem;
   color: #ffd88a;
   font-weight: 600;
+}
+
+body.theme-recruit .boss-invite-kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffd88a;
+  background: rgba(255, 216, 138, 0.12);
 }
 
 body.theme-recruit .boss-invite-main {
@@ -2405,9 +2510,26 @@ body.theme-recruit .reject-card {
     font-size: 1rem;
   }
 
+  body.theme-recruit .non-technical-preview .role-feed-portrait,
+  body.theme-recruit .non-technical-preview .select-card-avatar {
+    min-height: 220px;
+  }
+
   body.theme-recruit .boss-invite-card {
     flex-direction: column;
     padding: 14px;
+  }
+
+  body.theme-recruit .invitation-list.nontech-rune-list {
+    grid-template-columns: 1fr;
+  }
+
+  body.theme-recruit .nontech-rune-card {
+    min-height: 540px;
+  }
+
+  body.theme-recruit .nontech-rune-portrait {
+    height: 340px;
   }
 
   body.theme-recruit .boss-invite-cta {
