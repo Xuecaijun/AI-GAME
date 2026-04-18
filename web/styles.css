@@ -1709,6 +1709,71 @@ body.theme-recruit .start-race-scene {
   z-index: 0;
 }
 
+body.theme-recruit .start-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+body.theme-recruit .start-loading-card {
+  position: relative;
+  z-index: 21;
+  pointer-events: auto;
+  min-width: 320px;
+  padding: 18px 20px;
+  border-radius: 2px;
+  border: 1px solid #7f9db9;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f2f2f2 100%);
+  box-shadow:
+    inset 1px 1px 0 #ffffff,
+    inset -1px -1px 0 #b7c4d8,
+    0 10px 20px rgba(0, 0, 0, 0.22);
+}
+
+body.theme-recruit .start-loading-title {
+  margin: 0;
+  color: #0f2f58;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+body.theme-recruit .start-loading-sub {
+  margin: 6px 0 10px;
+  color: #3f5878;
+  font-size: 0.82rem;
+}
+
+body.theme-recruit .start-loading-bar {
+  height: 10px;
+  border-radius: 1px;
+  border: 1px solid #7f9db9;
+  background: #ffffff;
+  box-shadow: inset 1px 1px 0 #d8e0eb;
+  overflow: hidden;
+}
+
+body.theme-recruit .start-loading-bar > span {
+  display: block;
+  height: 100%;
+  width: 38%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #3f7ea8 0 8px,
+      #2d6389 8px 16px
+    );
+  animation: startLoadingXpBar 820ms linear infinite;
+}
+
+@keyframes startLoadingXpBar {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(280%); }
+}
+
 body.theme-recruit .start-race-track {
   position: absolute;
   inset: 0;
