@@ -1,12 +1,14 @@
 const state = {
   bootstrap: null,
   selectedRoleId: null,
+  roleConfirmed: false,
   selectedRoleMode: "preset",
   customRoleTitle: "",
   selectedInterviewTrack: "technical",
   selectedDifficulty: "normal",
   resumeMode: "custom",
   invitations: null,
+  invitesNotifyPending: false,
   session: null,
   answerTimer: null,
   eventTimer: null,
@@ -39,13 +41,18 @@ const el = (id) => document.getElementById(id);
 const els = {
   runtimeBadge: el("runtime-badge"),
   runtimeReason: el("runtime-reason"),
+  appTopbar: document.querySelector(".app-topbar"),
 
   // resume view
   resumeView: el("resume-view"),
   difficultyList: el("difficulty-list"),
   roleList: el("role-list"),
-  customRoleInput: el("custom-role-input"),
-  customRoleWrap: document.getElementById("custom-role-wrap"),
+  offerPickerField: el("offer-picker-field"),
+  selectedOfferField: el("selected-offer-field"),
+  selectedOfferTitle: el("selected-offer-title"),
+  changeOfferBtn: el("change-offer-btn"),
+  roleDependentFields: Array.from(document.querySelectorAll(".resume-requires-role")),
+  roleSelectHint: document.querySelector(".role-select-hint"),
   interviewTrackList: el("interview-track-list"),
   interviewTrackHint: el("interview-track-hint"),
   resumeText: el("resume-text"),
@@ -133,6 +140,8 @@ const els = {
   shareLines: el("share-lines"),
   roundScoreList: el("round-score-list"),
   restartBtn: el("restart-btn"),
+  resultNoticeCard: el("result-notice-card"),
+  resultNoticeLine: el("result-notice-line"),
   offerLetter: el("offer-letter"),
   offerCompany: el("offer-company"),
   offerPosition: el("offer-position"),
@@ -143,6 +152,22 @@ const els = {
   rejectCard: el("reject-card"),
   rejectReason: el("reject-reason"),
   toast: el("toast"),
+  hero: el("hero"),
+  startView: el("start-view"),
+  startGameBtn: el("start-game-btn"),
+  chooseTrackView: el("choose-track-view"),
+  pickTechnicalBtn: el("pick-technical-btn"),
+  pickNonTechnicalBtn: el("pick-non-technical-btn"),
+
+  meetingView: el("meeting-view"),
+  hudToggleBtn: el("hud-toggle-btn"),
+  appTabbar: el("app-tabbar"),
+  tabJob: el("tab-job"),
+  tabChat: el("tab-chat"),
+  tabMore: el("tab-more"),
+  tabChatDot: el("tab-chat-dot"),
+  moreView: el("more-view"),
+  moreCloseBtn: el("more-close-btn"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -151,6 +176,7 @@ async function init() {
   bindEvents();
   await detectTTSMode();
   await loadBootstrap();
+  updateEntryChrome();
 }
 
 async function detectTTSMode() {
@@ -171,26 +197,33 @@ function bindEvents() {
     });
   });
 
+  els.startGameBtn?.addEventListener("click", openTrackPicker);
+  els.pickTechnicalBtn?.addEventListener("click", () => {
+    state.selectedInterviewTrack = "technical";
+    beginGame();
+  });
+  els.pickNonTechnicalBtn?.addEventListener("click", () => {
+    alert("非技术类面试正在开发中，敬请期待。");
+  });
+
   els.mockResumeBtn.addEventListener("click", generateMockResume);
+  els.changeOfferBtn?.addEventListener("click", resetOfferSelection);
   els.uploadResumeBtn.addEventListener("click", () => els.resumeFile.click());
   els.resumeFile.addEventListener("change", uploadResumeFile);
   els.toInvitationsBtn.addEventListener("click", fetchInvitations);
-  els.backToResumeBtn.addEventListener("click", () => switchView("resume"));
+  els.backToResumeBtn.addEventListener("click", () => {
+    if (state.invitations && !state.invitations.comingSoon) {
+      state.invitesNotifyPending = true;
+      updateChatTabDot();
+    }
+    switchView("resume");
+  });
   els.submitAnswerBtn.addEventListener("click", submitAnswer);
   els.codeSubmitBtn.addEventListener("click", submitCodeAnswer);
   els.leaveBtn.addEventListener("click", leaveEarly);
   els.restartBtn.addEventListener("click", resetAll);
   els.eventTextSubmit.addEventListener("click", () => submitEvent({ text: els.eventTextInput.value }));
-  els.customRoleInput.addEventListener("input", () => {
-    state.customRoleTitle = els.customRoleInput.value.trim();
-    if (state.customRoleTitle) {
-      state.selectedRoleMode = "custom";
-    } else if (state.selectedRoleMode === "custom") {
-      state.selectedRoleMode = "preset";
-      state.selectedRoleId = state.bootstrap?.roles?.[0]?.id ?? null;
-    }
-    renderRoles();
-  });
+  bindRecruitChrome();
 }
 
 /* =====================================================================
@@ -220,6 +253,7 @@ function renderBootstrap() {
   renderTrackMode();
   renderRoles();
   renderInterviewTracks();
+  renderRoleDependentSections();
 }
 
 function renderTrackMode() {
@@ -296,71 +330,78 @@ function renderRoles() {
     ? (state.bootstrap.technicalRoles || state.bootstrap.roles)
     : state.bootstrap.roles;
 
-  if (isTechnical) {
-    if (state.selectedRoleMode === "random" || state.selectedRoleMode === "custom") {
-      state.selectedRoleMode = "preset";
-      state.customRoleTitle = "";
-      els.customRoleInput.value = "";
-    }
-    if (!roleLibrary.some((role) => role.id === state.selectedRoleId)) {
-      state.selectedRoleId = roleLibrary[0]?.id ?? null;
-    }
-    if (els.customRoleWrap) els.customRoleWrap.style.display = "none";
-  } else {
-    if (els.customRoleWrap) els.customRoleWrap.style.display = "";
-
-    const randomCard = document.createElement("button");
-    randomCard.type = "button";
-    randomCard.className = `select-card random-card ${state.selectedRoleMode === "random" ? "active" : ""}`;
-    randomCard.innerHTML = `
-      <h4>随机岗位</h4>
-      <p>不指定岗位，由系统从当前岗位库中随机为你挑选一个。</p>
-      <small>系统任选 / 惊喜挑战 / 开局随机</small>
-    `;
-    randomCard.addEventListener("click", () => {
-      state.selectedRoleMode = "random";
-      state.customRoleTitle = "";
-      els.customRoleInput.value = "";
-      renderRoles();
-    });
-    els.roleList.appendChild(randomCard);
+  if (!roleLibrary.some((role) => role.id === state.selectedRoleId)) {
+    state.selectedRoleId = roleLibrary[0]?.id ?? null;
   }
 
-  roleLibrary.forEach((role) => {
+  roleLibrary.forEach((role, index) => {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = `select-card ${state.selectedRoleMode === "preset" && role.id === state.selectedRoleId ? "active" : ""}`;
+    card.className = `select-card role-feed-card ${role.id === state.selectedRoleId ? "active" : ""}`;
+
+    const seed = seededIndex(role.id || role.title || String(index));
+    const salaryPool = isTechnical
+      ? ["18-28K·14薪", "20-35K·16薪", "25-40K·15薪", "15-24K·13薪", "30-45K·16薪"]
+      : ["8-12K·13薪", "10-15K·13薪", "12-20K·14薪", "15-22K·14薪", "6-9K·12薪"];
+    const companyPool = ["曜石互动", "北辰科技", "星澜智能", "回声网络", "启元数据", "云途创新"];
+    const cityPool = ["北京", "上海", "深圳", "杭州", "成都", "广州"];
+    const scalePool = ["20-99人", "100-499人", "500-999人", "1000-9999人", "A轮", "B轮", "不需要融资"];
+    const expPool = ["1-3年", "3-5年", "应届/实习", "经验不限"];
+    const degreePool = ["本科", "大专", "硕士优先", "学历不限"];
+
+    const keywords = Array.isArray(role.keywords) ? role.keywords.slice(0, 4) : [];
     card.innerHTML = `
-      <h4>${role.title}</h4>
-      <p>${role.summary}</p>
-      <small>${role.keywords.slice(0, 3).join(" / ")}</small>
+      <div class="role-feed-head">
+        <h4>${escapeHtml(role.title)}</h4>
+        <strong class="role-feed-salary">${salaryPool[seed % salaryPool.length]}</strong>
+      </div>
+      <p class="role-feed-company">${companyPool[seed % companyPool.length]} · ${scalePool[(seed + 2) % scalePool.length]} · ${cityPool[(seed + 1) % cityPool.length]}</p>
+      <p class="role-feed-summary">${escapeHtml(role.summary || "该岗位将根据你的简历进行深挖问答与场景事件追问。")}</p>
+      <div class="role-feed-tags">
+        ${(keywords.length ? keywords : [expPool[seed % expPool.length], degreePool[(seed + 1) % degreePool.length], isTechnical ? "技术面" : "通用面"])
+          .map((tag) => `<span>${escapeHtml(String(tag))}</span>`)
+          .join("")}
+      </div>
     `;
     card.addEventListener("click", () => {
       state.selectedRoleMode = "preset";
       state.selectedRoleId = role.id;
-      state.customRoleTitle = "";
-      els.customRoleInput.value = "";
+      state.roleConfirmed = true;
       renderRoles();
+      renderRoleDependentSections();
+      els.resumeView?.scrollTo?.({ top: 0, behavior: "smooth" });
     });
     els.roleList.appendChild(card);
   });
+}
 
-  if (!isTechnical) {
-    const customCard = document.createElement("button");
-    customCard.type = "button";
-    customCard.className = `select-card custom-card ${state.selectedRoleMode === "custom" ? "active" : ""}`;
-    customCard.innerHTML = `
-      <h4>自定义岗位</h4>
-      <p>${escapeHtml(state.customRoleTitle || "输入任意岗位名称，系统会按该岗位生成简历与面试内容。")}</p>
-      <small>任意职业 / 自定义挑战 / 通用适配</small>
-    `;
-    customCard.addEventListener("click", () => {
-      state.selectedRoleMode = "custom";
-      renderRoles();
-      els.customRoleInput.focus();
-    });
-    els.roleList.appendChild(customCard);
+function renderRoleDependentSections() {
+  const ready = Boolean(state.roleConfirmed && state.selectedRoleId);
+  (els.roleDependentFields || []).forEach((node) => {
+    node.classList.toggle("hidden", !ready);
+  });
+  if (els.offerPickerField) {
+    els.offerPickerField.classList.toggle("hidden", ready);
   }
+  if (els.selectedOfferField) {
+    els.selectedOfferField.classList.toggle("hidden", !ready);
+  }
+  if (els.roleSelectHint) {
+    els.roleSelectHint.classList.toggle("hidden", ready);
+  }
+  const activeLibrary = state.selectedInterviewTrack === "technical"
+    ? (state.bootstrap?.technicalRoles || state.bootstrap?.roles || [])
+    : (state.bootstrap?.roles || []);
+  const selectedRole = activeLibrary.find((role) => role.id === state.selectedRoleId);
+  if (els.selectedOfferTitle) {
+    els.selectedOfferTitle.textContent = selectedRole?.title || "—";
+  }
+}
+
+function resetOfferSelection() {
+  state.roleConfirmed = false;
+  renderRoleDependentSections();
+  els.resumeView?.scrollTo?.({ top: 0, behavior: "smooth" });
 }
 
 function renderInterviewTracks() {
@@ -373,17 +414,18 @@ function renderInterviewTracks() {
     button.title = track.description || "";
     button.addEventListener("click", () => {
       state.selectedInterviewTrack = track.id;
+      state.roleConfirmed = false;
       if (track.id === "technical") {
         state.selectedRoleId = state.bootstrap?.technicalRoles?.[0]?.id ?? state.bootstrap?.roles?.[0]?.id ?? null;
       } else {
         state.selectedRoleId = null;
         state.selectedRoleMode = "preset";
         state.customRoleTitle = "";
-        els.customRoleInput.value = "";
       }
       renderTrackMode();
       renderInterviewTracks();
       renderRoles();
+      renderRoleDependentSections();
     });
     els.interviewTrackList.appendChild(button);
   });
@@ -488,34 +530,26 @@ function renderInvitations(data) {
 
   els.trackPlaceholder.classList.add("hidden");
   data.invitations.forEach((interviewer) => {
-    const role = interviewer.featured_role || {};
+    const snippet = interviewer.invitation_copy || interviewer.tone || "";
     const card = document.createElement("article");
-    card.className = `invitation-card ${isTechnical ? "" : "showcase-card"}`.trim();
+    card.className = "boss-invite-card";
     card.innerHTML = `
-      <div class="invitation-head">
-        <div class="invitation-avatar">${initialOf(interviewer.name)}</div>
-        <div>
-          <h4>${escapeHtml(interviewer.name)}</h4>
-          <p class="invitation-title">${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
-          <div class="invitation-tags">
-            ${(interviewer.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
-          </div>
+      <div class="boss-invite-avatar" aria-hidden="true">${escapeHtml(initialOf(interviewer.name))}</div>
+      <div class="boss-invite-main">
+        <div class="boss-invite-top">
+          <h4 class="boss-invite-name">${escapeHtml(interviewer.name)}</h4>
+          <span class="boss-invite-pass">通过线 ${escapeHtml(String(interviewer.pass_score ?? ""))}</span>
         </div>
+        <p class="boss-invite-role">${escapeHtml(interviewer.title || "")}</p>
+        <div class="boss-invite-tags">
+          ${(interviewer.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+        </div>
+        <p class="boss-invite-snippet">${escapeHtml(snippet)}</p>
+        <p class="boss-invite-style muted">${escapeHtml(interviewer.style || "")}</p>
       </div>
-      ${role.title ? `
-      <div class="invitation-role-block">
-        <strong>${escapeHtml(role.title)}</strong>
-        <p>${escapeHtml(role.summary || "")}</p>
-      </div>` : ""}
-      <p class="invitation-copy">${escapeHtml(interviewer.invitation_copy || interviewer.tone || "")}</p>
-      <div class="invitation-meta">
-        <span>通过线：<b>${interviewer.pass_score}</b></span>
-        <span>${escapeHtml(interviewer.card_hint || interviewer.style || "")}</span>
-      </div>
-      <button type="button" class="accept-btn">接受面试</button>
+      <button type="button" class="boss-invite-cta primary-btn">立即沟通</button>
     `;
-    card.querySelector(".accept-btn").textContent = isTechnical ? "接受面试" : "选择这张卡";
-    card.querySelector(".accept-btn").addEventListener("click", () => startInterview(interviewer.id));
+    card.querySelector(".boss-invite-cta").addEventListener("click", () => startInterview(interviewer.id));
     els.invitationList.appendChild(card);
   });
 }
@@ -531,6 +565,13 @@ async function startInterview(interviewerId) {
     const descriptor = await apiPost("/api/session/start", payload);
     state.session = descriptor;
     switchView("meeting");
+    if (els.meetingView) {
+      els.meetingView.classList.remove("hud-collapsed");
+    }
+    if (els.hudToggleBtn) {
+      els.hudToggleBtn.setAttribute("aria-expanded", "true");
+      els.hudToggleBtn.textContent = "隐藏分数栏";
+    }
     startMeetingClock();
     applyDescriptor(descriptor);
   } catch (err) {
@@ -611,7 +652,7 @@ function renderTranscript(transcript) {
   els.transcript.innerHTML = "";
   transcript.forEach((message) => {
     const bubble = document.createElement("article");
-    bubble.className = `bubble ${message.speaker}`;
+    bubble.className = `bubble message-bubble ${message.speaker}`;
     const label = document.createElement("span");
     label.className = "bubble-label";
     label.textContent = speakerLabel(message.speaker);
@@ -1059,8 +1100,19 @@ function finishMeeting(descriptor) {
   const report = descriptor.report;
   const selected = descriptor.selected || state.session.selected;
 
-  els.resultTitle.textContent = `${selected.role.title} 面试报告`;
-  els.resultBadge.textContent = report.verdictLabel || (report.verdict === "offer" ? "Offer" : "未录用");
+  els.resultTitle.textContent = `${selected.role.title} · 面试结果`;
+  const verdictLabel = report.verdictLabel || (report.verdict === "offer" ? "Offer" : "未录用");
+  els.resultBadge.textContent = verdictLabel;
+  if (els.resultNoticeLine) {
+    els.resultNoticeLine.textContent =
+      report.verdict === "offer"
+        ? `结果：${verdictLabel}。综合分 ${report.sessionScore}，已超过通过线 ${report.passScore}。`
+        : `结果：${verdictLabel}。综合分 ${report.sessionScore}，通过线 ${report.passScore}。`;
+  }
+  if (els.resultNoticeCard) {
+    els.resultNoticeCard.classList.toggle("is-offer", report.verdict === "offer");
+    els.resultNoticeCard.classList.toggle("is-reject", report.verdict !== "offer");
+  }
   els.resultSummary.textContent = report.summary;
   els.resultQuote.textContent = report.interviewerQuote;
   els.resultTips.textContent = `${report.tips} 综合 ${report.sessionScore} / 通过线 ${report.passScore}。`;
@@ -1115,20 +1167,118 @@ function finishMeeting(descriptor) {
  * 视图切换 & 工具函数
  * ================================================================ */
 
+function openTrackPicker() {
+  els.startView?.classList.remove("active");
+  els.startView?.classList.add("hidden");
+  updateEntryChrome();
+  switchView("choose-track");
+}
+
+function beginGame() {
+  if (state.selectedInterviewTrack !== "technical") {
+    state.selectedInterviewTrack = "technical";
+  }
+  els.startView?.classList.remove("active");
+  els.startView?.classList.add("hidden");
+  switchView("resume");
+  renderBootstrap();
+}
+
+function bindRecruitChrome() {
+  if (els.tabJob) {
+    els.tabJob.addEventListener("click", () => {
+      beginGame();
+    });
+  }
+  if (els.tabChat) {
+    els.tabChat.addEventListener("click", () => {
+      if (!state.invitations || state.invitations.comingSoon) {
+        alert("请先在「求职」里完善简历并点击「完善并投递 · 收取新招呼」。");
+        switchView("resume");
+        return;
+      }
+      state.invitesNotifyPending = false;
+      updateChatTabDot();
+      switchView("invitation");
+    });
+  }
+  if (els.tabMore) {
+    els.tabMore.addEventListener("click", () => switchView("more"));
+  }
+  if (els.moreCloseBtn) {
+    els.moreCloseBtn.addEventListener("click", () => switchView("resume"));
+  }
+  if (els.hudToggleBtn && els.meetingView) {
+    els.hudToggleBtn.addEventListener("click", () => {
+      const collapsed = els.meetingView.classList.toggle("hud-collapsed");
+      els.hudToggleBtn.setAttribute("aria-expanded", String(!collapsed));
+      els.hudToggleBtn.textContent = collapsed ? "显示分数栏" : "隐藏分数栏";
+    });
+  }
+}
+
+function updateChatTabDot() {
+  if (!els.tabChatDot) return;
+  const show = Boolean(state.invitesNotifyPending);
+  els.tabChatDot.classList.toggle("hidden", !show);
+}
+
+function syncRecruitTabs(view) {
+  if (!els.tabJob || !els.tabChat || !els.tabMore) return;
+  els.tabJob.classList.toggle("active", view === "resume");
+  els.tabChat.classList.toggle("active", view === "invitation");
+  els.tabMore.classList.toggle("active", view === "more");
+}
+
+function updateEntryChrome() {
+  const inEntry = Boolean(els.startView?.classList.contains("active"));
+  if (els.appTopbar) {
+    els.appTopbar.classList.toggle("hidden", inEntry);
+  }
+  if (els.appTabbar) {
+    els.appTabbar.classList.toggle("hidden", inEntry);
+  }
+}
+
 function switchView(view) {
-  [["resume", els.resumeView], ["invitation", els.invitationView], ["meeting", els.meetingView], ["result", els.resultView]].forEach(
-    ([name, node]) => {
-      node.classList.toggle("active", name === view);
-    }
-  );
+  [
+    ["choose-track", els.chooseTrackView],
+    ["resume", els.resumeView],
+    ["invitation", els.invitationView],
+    ["meeting", els.meetingView],
+    ["result", els.resultView],
+    ["more", els.moreView],
+  ].forEach(([name, node]) => {
+    if (node) node.classList.toggle("active", name === view);
+  });
+
+  const hideChrome = view === "meeting" || view === "result" || view === "choose-track";
+  document.body.classList.toggle("subview-fullscreen", hideChrome);
+  if (els.appTabbar) {
+    els.appTabbar.classList.toggle("hidden", hideChrome);
+  }
+
+  if (els.hero) {
+    els.hero.classList.toggle("hidden", view !== "resume");
+  }
+
+  if (view === "invitation") {
+    state.invitesNotifyPending = false;
+    updateChatTabDot();
+  }
+
+  syncRecruitTabs(view);
+  updateEntryChrome();
 }
 
 function resetAll() {
   state.session = null;
   state.invitations = null;
   state.selectedRoleMode = "preset";
+  state.roleConfirmed = false;
+  els.startView?.classList.add("hidden");
+  els.startView?.classList.remove("active");
   state.customRoleTitle = "";
-  els.customRoleInput.value = "";
   state.selectedInterviewTrack = state.bootstrap?.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
   if (state.selectedInterviewTrack === "technical" && state.bootstrap?.technicalRoles?.length) {
     state.selectedRoleId = state.bootstrap.technicalRoles[0].id;
@@ -1138,6 +1288,7 @@ function resetAll() {
   renderTrackMode();
   renderRoles();
   renderInterviewTracks();
+  renderRoleDependentSections();
   els.answerInput.value = "";
   stopAnswerTimer();
   stopEventTimer();
@@ -1147,6 +1298,8 @@ function resetAll() {
   toggleAnswerMode("normal");
   hideToast();
   state.tts.lastSpokenIdx = 0;
+  state.invitesNotifyPending = false;
+  updateChatTabDot();
   switchView("resume");
 }
 
@@ -1165,8 +1318,13 @@ function buildResumePayload() {
 }
 
 function ensureRoleSelection() {
-  if (state.selectedInterviewTrack === "technical") {
-    return true;
+  if (!state.selectedRoleId) {
+    alert("请先选择一个岗位。");
+    return false;
+  }
+  if (!state.roleConfirmed) {
+    alert("请先点击岗位卡片确认岗位。");
+    return false;
   }
   return true;
 }
@@ -1174,16 +1332,10 @@ function ensureRoleSelection() {
 function syncResolvedRole(role) {
   if (!role) return;
   state.selectedRoleId = role.id || state.selectedRoleId;
-  if (role.is_custom) {
-    state.selectedRoleMode = "custom";
-    state.customRoleTitle = role.title || "";
-    els.customRoleInput.value = state.customRoleTitle;
-  } else {
-    state.selectedRoleMode = "preset";
-    state.customRoleTitle = "";
-    els.customRoleInput.value = "";
-  }
+  state.selectedRoleMode = "preset";
+  state.roleConfirmed = true;
   renderRoles();
+  renderRoleDependentSections();
 }
 
 function speakerLabel(type) {
@@ -1210,6 +1362,15 @@ function formatCodeDifficulty(value) {
 function initialOf(name) {
   if (!name) return "面";
   return Array.from(name)[0] || "面";
+}
+
+function seededIndex(input) {
+  const text = String(input || "role");
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+  return hash;
 }
 
 function escapeHtml(value) {

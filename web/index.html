@@ -6,31 +6,62 @@
     <title>ShowMeTheOffer · AI 面试生存游戏</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
-    <div class="noise"></div>
+  <body class="theme-recruit">
+    <div class="noise" aria-hidden="true"></div>
+    <header class="app-topbar" role="banner">
+      <div class="app-topbar-brand">
+        <span class="app-topbar-title">终面求职</span>
+        <span class="app-topbar-sub">AI 面试 · 投递与沟通</span>
+      </div>
+      <div class="app-topbar-meta">
+        <span id="runtime-badge" class="badge">检测中</span>
+        <p id="runtime-reason" class="topbar-runtime-reason muted">正在读取运行状态</p>
+      </div>
+    </header>
+
     <main class="app-shell">
-      <section class="hero panel" id="hero">
+      <section id="start-view" class="start-view active" aria-label="开始游戏">
+        <div class="start-card panel landing-card">
+          <h1>终面：AI 面试官</h1>
+          <p class="landing-copy">模拟真实面试流程</p>
+          <div class="start-actions">
+            <button id="start-game-btn" class="primary-btn">开始游戏</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="choose-track-view" class="panel view choose-track-view" aria-label="选择面试方向">
+        <h2>选择类型</h2>
+        <div class="track-choice-grid">
+          <button id="pick-technical-btn" type="button" class="track-choice-card">
+            <h3>技术类</h3>
+            <span>进入</span>
+          </button>
+          <button id="pick-non-technical-btn" type="button" class="track-choice-card disabled" aria-disabled="true">
+            <h3>非技术类</h3>
+            <span>开发中</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="hero panel hidden" id="hero">
         <div>
-          <p class="eyebrow">ShowMeTheOffer · AI Interview Survival</p>
+          <p class="eyebrow">ShowMeTheOffer</p>
           <h1>终面：AI面试官</h1>
           <p class="hero-copy">
-            上传简历 → 收到面试官邀请 → 进入仿腾讯会议的面试间。AI 会判题、深挖、发起随机事件。撑到通过线即可拿到 Offer。
+            完善简历并投递 → 在「沟通」里收到面试官新招呼 → 进入沟通详情完成作答。AI 会判题、深挖与随机事件，通过线即可解锁 Offer。
           </p>
-        </div>
-        <div class="hero-meta">
-          <span id="runtime-badge" class="badge">检测中</span>
-          <p id="runtime-reason" class="muted">正在读取运行状态</p>
         </div>
       </section>
 
       <!-- ==================== STEP 1：简历 ==================== -->
-      <section id="resume-view" class="panel view active">
+      <section id="resume-view" class="panel view">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Step 01</p>
-            <h2>配置你的简历</h2>
+            <p class="eyebrow">求职</p>
+            <h2>完善简历与目标岗位</h2>
           </div>
-          <button id="mock-resume-btn" class="ghost-btn">生成 AI 简历草稿</button>
+          <button id="mock-resume-btn" class="ghost-btn resume-requires-role hidden">生成 AI 简历草稿</button>
         </div>
 
         <div class="setup-grid">
@@ -39,27 +70,27 @@
             <div id="difficulty-list" class="chips"></div>
           </div>
 
-          <div class="field">
-            <span>应聘岗位</span>
-            <div id="role-list" class="card-grid"></div>
-            <div id="custom-role-wrap" class="custom-role-wrap">
-              <input
-                id="custom-role-input"
-                type="text"
-                maxlength="40"
-                placeholder="输入任意岗位，例如：后端工程师、运营、教师、财务分析师"
-              />
-              <p class="muted">可选择预设岗位、随机岗位，或直接输入你想挑战的任意岗位。</p>
+          <div id="offer-picker-field" class="field full">
+            <span>选择 Offer</span>
+            <div id="role-list" class="card-grid offer-card-grid"></div>
+            <p class="muted role-select-hint">点击一个 Offer 后，进入简历投递界面。</p>
+          </div>
+
+          <div id="selected-offer-field" class="field full resume-requires-role hidden">
+            <span>已选择 Offer</span>
+            <div class="selected-offer-bar">
+              <strong id="selected-offer-title">—</strong>
+              <button id="change-offer-btn" type="button" class="ghost-btn">重新选择</button>
             </div>
           </div>
 
-          <div class="field">
+          <div class="field resume-requires-role hidden">
             <span>面试类型</span>
             <div id="interview-track-list" class="chips"></div>
             <p id="interview-track-hint" class="muted">选择技术面或非技术面后，再进入邀请阶段。</p>
           </div>
 
-          <div class="field">
+          <div class="field resume-requires-role hidden">
             <span>简历模式</span>
             <div class="mode-switch">
               <button data-mode="custom" class="mode-btn active">自定义简历</button>
@@ -67,7 +98,7 @@
             </div>
           </div>
 
-          <label class="field full">
+          <label class="field full resume-requires-role hidden">
             <span>简历内容</span>
             <div class="resume-actions">
               <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" hidden />
@@ -82,9 +113,9 @@
           </label>
         </div>
 
-        <div class="start-row">
-          <button id="to-invitations-btn" class="primary-btn">分析简历 · 收取邀请</button>
-          <p class="muted">系统会分析简历，然后随机抽取 3 位面试官向你发起邀请。</p>
+        <div class="start-row resume-requires-role hidden">
+          <button id="to-invitations-btn" class="primary-btn">完善并投递 · 收取新招呼</button>
+          <p class="muted">系统会分析简历，并随机抽取 3 位面试官向你发起沟通邀请。</p>
         </div>
       </section>
 
@@ -92,25 +123,28 @@
       <section id="invitation-view" class="panel view">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Step 02</p>
-            <h2>你收到了这些面试邀请</h2>
+            <p class="eyebrow">沟通</p>
+            <h2>新招呼</h2>
           </div>
           <button id="back-to-resume-btn" class="ghost-btn">返回修改简历</button>
         </div>
 
-        <div id="invitation-analysis" class="analysis-box">
-          <h4>AI 简历分析</h4>
-          <p class="muted" id="invitation-blurb">正在分析……</p>
-          <ul id="invitation-strengths" class="list"></ul>
-          <ul id="invitation-risks" class="list warn"></ul>
-        </div>
+        <details id="invitation-diagnosis" class="diagnosis-accordion" open>
+          <summary class="diagnosis-summary">简历诊断 <span class="diagnosis-hint">展开 / 收起</span></summary>
+          <div id="invitation-analysis" class="analysis-box diagnosis-body">
+            <h4>AI 简历分析</h4>
+            <p class="muted" id="invitation-blurb">正在分析……</p>
+            <ul id="invitation-strengths" class="list"></ul>
+            <ul id="invitation-risks" class="list warn"></ul>
+          </div>
+        </details>
 
         <div id="track-placeholder" class="analysis-box hidden">
           <h4 id="track-placeholder-title">接口预留中</h4>
           <p id="track-placeholder-desc" class="muted"></p>
         </div>
 
-        <div id="invitation-list" class="invitation-grid"></div>
+        <div id="invitation-list" class="invitation-list boss-invite-list"></div>
       </section>
 
       <!-- ==================== STEP 3：仿 TX 会议面试 ==================== -->
@@ -118,13 +152,18 @@
         <header class="meeting-bar panel">
           <div class="meeting-title">
             <span class="dot-live"></span>
-            终面会议室 · <span id="meeting-role">—</span>
+            沟通中 · <span id="meeting-role">—</span>
+          </div>
+          <div class="meeting-bar-actions">
+            <button type="button" id="hud-toggle-btn" class="ghost-btn hud-toggle-btn" aria-expanded="true" aria-controls="meeting-hud-row">
+              隐藏分数栏
+            </button>
           </div>
           <div class="meeting-clock">
             <span>第 <b id="round-idx">1</b> / <span id="round-total">—</span> 轮</span>
             <span id="meeting-clock">00:00</span>
           </div>
-          <div class="meeting-hud">
+          <div id="meeting-hud-row" class="meeting-hud">
             <span class="hud-pill">综合 <b id="hud-score">0</b></span>
             <span class="hud-pill">本轮 <b id="hud-round-score">100</b></span>
             <span class="hud-pill">通过线 <b id="hud-pass">70</b></span>
@@ -176,7 +215,7 @@
 
           <aside class="meeting-side panel">
             <div class="side-head">
-              <h3>实时字幕 / 聊天</h3>
+              <h3>聊天记录</h3>
               <span id="phase-indicator" class="phase-indicator">作答中</span>
             </div>
             <div id="transcript" class="transcript"></div>
@@ -210,7 +249,7 @@
             </div>
             <div class="main-actions">
               <button id="leave-btn" class="ghost-btn danger">提前离开</button>
-              <button id="submit-answer-btn" class="primary-btn">提交回答</button>
+              <button id="submit-answer-btn" class="primary-btn">发送</button>
             </div>
           </div>
         </footer>
@@ -267,10 +306,19 @@
       <section id="result-view" class="panel view">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Final Report</p>
+            <p class="eyebrow">系统通知</p>
             <h2 id="result-title">面试结果</h2>
           </div>
           <button id="restart-btn" class="ghost-btn">再来一局</button>
+        </div>
+
+        <div id="result-notice-card" class="result-notice-card">
+          <div class="result-notice-icon" aria-hidden="true">!</div>
+          <div class="result-notice-body">
+            <p class="result-notice-label">面试已结束</p>
+            <p id="result-notice-line" class="result-notice-line muted">结果已生成，请查看下方详情。</p>
+          </div>
+          <div id="result-badge" class="result-badge result-badge-inline">待定</div>
         </div>
 
         <div id="offer-letter" class="offer-letter hidden">
@@ -293,7 +341,6 @@
 
         <div class="result-layout">
           <div class="result-main">
-            <div class="result-badge" id="result-badge">待定</div>
             <p id="result-summary" class="result-summary"></p>
             <blockquote id="result-quote" class="quote"></blockquote>
             <p id="result-tips" class="muted"></p>
@@ -325,7 +372,41 @@
           <div id="share-lines"></div>
         </div>
       </section>
+
+      <section id="more-view" class="panel view more-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">更多</p>
+            <h2>关于本演示</h2>
+          </div>
+          <button type="button" id="more-close-btn" class="ghost-btn">返回求职</button>
+        </div>
+        <p class="muted more-page-copy">
+          本界面采用招聘类 App 常见的信息架构（顶栏、底部导航、卡片列表与沟通式会话），便于快速理解「投递 → 新招呼 → 沟通」流程。玩法与接口仍与当前版本后端一致。
+        </p>
+        <ul class="list more-page-list">
+          <li>「求职」：编辑简历、岗位与难度。</li>
+          <li>「沟通」：查看简历诊断与面试官新招呼。</li>
+          <li>面试进行中与结果页为全屏流程，底部导航会自动隐藏。</li>
+        </ul>
+      </section>
     </main>
+
+    <nav class="app-tabbar" id="app-tabbar" aria-label="主导航">
+      <button type="button" class="tab-item active" data-tab="job" id="tab-job">
+        <span class="tab-icon" aria-hidden="true">职</span>
+        <span class="tab-label">求职</span>
+      </button>
+      <button type="button" class="tab-item" data-tab="chat" id="tab-chat">
+        <span class="tab-icon" aria-hidden="true">讯</span>
+        <span class="tab-label">沟通</span>
+        <span id="tab-chat-dot" class="tab-dot hidden" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="tab-item" data-tab="more" id="tab-more">
+        <span class="tab-icon" aria-hidden="true">⋯</span>
+        <span class="tab-label">更多</span>
+      </button>
+    </nav>
 
     <div id="toast" class="toast hidden"></div>
 
