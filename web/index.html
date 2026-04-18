@@ -59,38 +59,19 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">求职</p>
-            <h2>完善简历与目标岗位</h2>
+            <h2>上传简历并生成推荐岗位</h2>
           </div>
-          <button id="mock-resume-btn" class="ghost-btn resume-requires-role hidden">生成 AI 简历草稿</button>
+          <button id="mock-resume-btn" class="ghost-btn">生成 AI 简历草稿</button>
         </div>
 
         <div class="setup-grid">
-          <div class="field">
-            <span>难度</span>
-            <div id="difficulty-list" class="chips"></div>
-          </div>
-
-          <div id="offer-picker-field" class="field full">
-            <span>选择 Offer</span>
-            <div id="role-list" class="card-grid offer-card-grid"></div>
-            <p class="muted role-select-hint">点击一个 Offer 后，进入简历投递界面。</p>
-          </div>
-
-          <div id="selected-offer-field" class="field full resume-requires-role hidden">
-            <span>已选择 Offer</span>
-            <div class="selected-offer-bar">
-              <strong id="selected-offer-title">—</strong>
-              <button id="change-offer-btn" type="button" class="ghost-btn">重新选择</button>
-            </div>
-          </div>
-
-          <div class="field resume-requires-role hidden">
+          <div id="interview-track-field" class="field full hidden">
             <span>面试类型</span>
             <div id="interview-track-list" class="chips"></div>
             <p id="interview-track-hint" class="muted">选择技术面或非技术面后，再进入邀请阶段。</p>
           </div>
 
-          <div class="field resume-requires-role hidden">
+          <div id="resume-mode-field" class="field">
             <span>简历模式</span>
             <div class="mode-switch">
               <button data-mode="custom" class="mode-btn active">自定义简历</button>
@@ -98,8 +79,8 @@
             </div>
           </div>
 
-          <label class="field full resume-requires-role hidden">
-            <span>简历内容</span>
+          <label id="resume-content-field" class="field full">
+            <span>个人简历</span>
             <div class="resume-actions">
               <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" hidden />
               <button id="upload-resume-btn" type="button" class="ghost-btn">上传简历文件</button>
@@ -108,12 +89,30 @@
             <textarea
               id="resume-text"
               rows="11"
-              placeholder="粘贴一份真实简历，或点击右上角“生成 AI 简历草稿”。"
+              placeholder="先上传或粘贴个人简历，再生成与你经历相关的推荐岗位。"
             ></textarea>
           </label>
+
+          <div id="offer-picker-field" class="field full">
+            <div class="recommendation-toolbar">
+              <span id="role-list-heading">推荐岗位</span>
+              <button id="generate-jobs-btn" type="button" class="primary-btn">生成推荐岗位</button>
+            </div>
+            <p id="recommendation-hint" class="muted">先上传个人简历，再生成与你经历相关的推荐岗位。</p>
+            <div id="role-list" class="card-grid offer-card-grid"></div>
+            <p class="muted role-select-hint">生成推荐岗位后，点击岗位卡片即可进入「沟通」新招呼页面。</p>
+          </div>
+
+          <div id="selected-offer-field" class="field full hidden">
+            <span>已选择 Offer</span>
+            <div class="selected-offer-bar">
+              <strong id="selected-offer-title">—</strong>
+              <button id="change-offer-btn" type="button" class="ghost-btn">重新选择</button>
+            </div>
+          </div>
         </div>
 
-        <div class="start-row resume-requires-role hidden">
+        <div id="submit-row" class="start-row hidden">
           <button id="to-invitations-btn" class="primary-btn">完善并投递 · 收取新招呼</button>
           <p class="muted">系统会分析简历，并随机抽取 3 位面试官向你发起沟通邀请。</p>
         </div>
@@ -385,7 +384,7 @@
           本界面采用招聘类 App 常见的信息架构（顶栏、底部导航、卡片列表与沟通式会话），便于快速理解「投递 → 新招呼 → 沟通」流程。玩法与接口仍与当前版本后端一致。
         </p>
         <ul class="list more-page-list">
-          <li>「求职」：编辑简历、岗位与难度。</li>
+          <li>「求职」：上传简历、生成推荐岗位后，点击岗位卡片进入沟通。</li>
           <li>「沟通」：查看简历诊断与面试官新招呼。</li>
           <li>面试进行中与结果页为全屏流程，底部导航会自动隐藏。</li>
         </ul>
@@ -409,6 +408,25 @@
     </nav>
 
     <div id="toast" class="toast hidden"></div>
+
+    <div
+      id="joining-meeting-overlay"
+      class="joining-meeting-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="joining-meeting-title"
+      aria-describedby="joining-meeting-sub"
+    >
+      <div class="joining-meeting-card">
+        <div class="joining-meeting-pulse" aria-hidden="true"></div>
+        <h2 id="joining-meeting-title" class="joining-meeting-title">正在进入会议</h2>
+        <p id="joining-meeting-sub" class="joining-meeting-sub">正在连接会议…</p>
+        <div class="joining-meeting-progress" aria-hidden="true">
+          <span class="joining-meeting-progress-bar"></span>
+        </div>
+      </div>
+    </div>
 
     <script src="./app.js"></script>
   </body>
