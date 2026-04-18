@@ -128,6 +128,7 @@ const els = {
   phaseIndicator: el("phase-indicator"),
   drillIndicator: el("drill-indicator"),
   timerFill: el("timer-fill"),
+  timerHorse: el("timer-horse"),
   timerText: el("timer-text"),
   answerDock: document.querySelector(".answer-dock"),
   answerInput: el("answer-input"),
@@ -1263,6 +1264,13 @@ function paintAnswerTimer(pct, text, urgent) {
   [els.timerFill, els.codeTimerFill].forEach((node) => {
     node.style.width = `${pct}%`;
   });
+
+  if (els.timerHorse) {
+    const clamped = Math.max(0, Math.min(100, pct));
+    els.timerHorse.style.left = `${clamped}%`;
+    els.timerHorse.classList.toggle("is-urgent", urgent);
+  }
+
   [els.timerText, els.codeTimerText].forEach((node) => {
     node.textContent = text;
     node.classList.toggle("urgent", urgent);
