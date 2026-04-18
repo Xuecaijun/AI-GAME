@@ -63,7 +63,6 @@ DIFFICULTIES = {
     "hard": {"id": "hard", "label": "硬核", "description": "追问更紧，容错更低", "max_turns": 5, "starting_stress": 30},
 }
 
-def _preview_nontech_pool(limit: int = 3) -> list[dict[str, Any]]:
 def _nontech_pool() -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for item in base_all_interviewers("non-technical"):
@@ -106,6 +105,7 @@ def _get_nontech_interviewer(interviewer_id: str) -> dict[str, Any]:
     if picked.get("featured_role"):
         return picked
     return random.choice(pool) if pool else picked
+
 
 def _preview_nontech_pool(limit: int = 3) -> list[dict[str, Any]]:
     pool = _nontech_pool()

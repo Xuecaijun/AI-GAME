@@ -285,10 +285,13 @@
         </div>
 
         <!-- 随机事件弹窗 -->
-        <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
-          <div class="modal-card panel">
-            <div class="modal-head">
-              <h3>突发事件</h3>
+        <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="event-title">
+          <div class="modal-card panel event-modal-card">
+            <div class="modal-head event-modal-head">
+              <div>
+                <p class="eyebrow">随机事件</p>
+                <h3 id="event-title">突发事件</h3>
+              </div>
               <span id="event-timer-text" class="timer-text">--</span>
             </div>
             <p id="event-intro" class="event-intro"></p>

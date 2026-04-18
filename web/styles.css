@@ -1035,6 +1035,22 @@ textarea:focus {
   animation: pop 180ms ease-out;
 }
 
+.event-modal-card {
+  width: min(760px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  background:
+    radial-gradient(circle at top right, rgba(108, 229, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(5, 16, 28, 0.96);
+  border-color: rgba(108, 229, 255, 0.2);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+}
+
+.event-modal-head {
+  align-items: flex-start;
+}
+
 .code-modal-card {
   width: min(760px, 100%);
   max-height: min(88vh, 920px);
@@ -2336,12 +2352,29 @@ body.theme-recruit .timer-bar {
 }
 
 body.theme-recruit .modal {
-  background: rgba(0, 0, 0, 0.45);
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+}
+
+body.theme-recruit .modal.hidden {
+  display: none !important;
 }
 
 body.theme-recruit .modal-card.panel {
   background: #fff;
   color: var(--text);
+}
+
+body.theme-recruit .event-modal-card {
+  position: relative;
+  margin: 0;
+  z-index: 1;
 }
 
 body.theme-recruit .code-modal-card {
