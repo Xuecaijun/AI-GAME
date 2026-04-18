@@ -54,6 +54,12 @@ const els = {
   mockResumeBtn: el("mock-resume-btn"),
   toInvitationsBtn: el("to-invitations-btn"),
   modeButtons: Array.from(document.querySelectorAll(".mode-btn")),
+  setupTitle: document.querySelector("#resume-view .section-head h2"),
+  roleFieldLabel: document.querySelector("#role-list")?.parentElement?.querySelector("span"),
+  resumeModeField: document.querySelector(".mode-switch")?.closest(".field"),
+  resumeContentField: el("resume-text")?.closest(".field"),
+  startHint: document.querySelector(".start-row .muted"),
+  invitationAnalysisTitle: document.querySelector("#invitation-analysis h4"),
 
   // invitation view
   invitationView: el("invitation-view"),
@@ -211,8 +217,37 @@ async function loadBootstrap() {
 function renderBootstrap() {
   renderRuntime(state.bootstrap.runtime);
   renderDifficulties();
+  renderTrackMode();
   renderRoles();
   renderInterviewTracks();
+}
+
+function renderTrackMode() {
+  const isTechnical = state.selectedInterviewTrack === "technical";
+
+  if (els.setupTitle) {
+    els.setupTitle.textContent = isTechnical ? "配置你的简历" : "挑一张你想入场的角色卡";
+  }
+  if (els.roleFieldLabel) {
+    els.roleFieldLabel.textContent = isTechnical ? "应聘岗位" : "本轮卡池";
+  }
+  if (els.mockResumeBtn) {
+    els.mockResumeBtn.style.display = isTechnical ? "" : "none";
+  }
+  if (els.resumeModeField) {
+    els.resumeModeField.style.display = isTechnical ? "" : "none";
+  }
+  if (els.resumeContentField) {
+    els.resumeContentField.style.display = isTechnical ? "" : "none";
+  }
+  if (els.startHint) {
+    els.startHint.textContent = isTechnical
+      ? "系统会先分析简历，再随机抽取 3 位技术面试官向你发起邀请。"
+      : "非技术面不需要带简历。三位角色面试官会各自带着岗位卡登场，你挑中感兴趣的一张就能开面。";
+  }
+  if (!isTechnical) {
+    state.resumeMode = "custom";
+  }
 }
 
 function renderRuntime(runtime) {
@@ -242,6 +277,21 @@ function renderRoles() {
   els.roleList.innerHTML = "";
 
   const isTechnical = state.selectedInterviewTrack === "technical";
+  if (!isTechnical) {
+    if (els.customRoleWrap) els.customRoleWrap.style.display = "none";
+    (state.bootstrap.nonTechnicalInterviewers || []).slice(0, 3).forEach((interviewer) => {
+      const role = interviewer.featured_role || {};
+      const card = document.createElement("article");
+      card.className = "select-card non-technical-preview";
+      card.innerHTML = `
+        <h4>${escapeHtml(interviewer.name)}</h4>
+        <p>${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
+        <small>${escapeHtml(role.title || "岗位将在下一步展示")}</small>
+      `;
+      els.roleList.appendChild(card);
+    });
+    return;
+  }
   const roleLibrary = isTechnical
     ? (state.bootstrap.technicalRoles || state.bootstrap.roles)
     : state.bootstrap.roles;
@@ -323,6 +373,15 @@ function renderInterviewTracks() {
     button.title = track.description || "";
     button.addEventListener("click", () => {
       state.selectedInterviewTrack = track.id;
+      if (track.id === "technical") {
+        state.selectedRoleId = state.bootstrap?.technicalRoles?.[0]?.id ?? state.bootstrap?.roles?.[0]?.id ?? null;
+      } else {
+        state.selectedRoleId = null;
+        state.selectedRoleMode = "preset";
+        state.customRoleTitle = "";
+        els.customRoleInput.value = "";
+      }
+      renderTrackMode();
       renderInterviewTracks();
       renderRoles();
     });
@@ -344,7 +403,9 @@ async function generateMockResume() {
   els.mockResumeBtn.disabled = true;
   try {
     const data = await apiPost("/api/resume/mock", buildResumePayload());
-    syncResolvedRole(data.role);
+    if (state.selectedInterviewTrack === "technical") {
+      syncResolvedRole(data.role);
+    }
     els.resumeText.value = data.resumeText;
     state.resumeMode = "ai-generated";
     els.modeButtons.forEach((button) => {
@@ -386,7 +447,7 @@ async function fetchInvitations() {
     return;
   }
   const payload = buildResumePayload();
-  if (!payload.resumeText) {
+  if (state.selectedInterviewTrack === "technical" && !payload.resumeText) {
     alert("先粘贴或生成一份简历。");
     return;
   }
@@ -405,6 +466,10 @@ async function fetchInvitations() {
 }
 
 function renderInvitations(data) {
+  const isTechnical = state.selectedInterviewTrack === "technical";
+  if (els.invitationAnalysisTitle) {
+    els.invitationAnalysisTitle.textContent = isTechnical ? "AI 简历分析" : "今夜卡池";
+  }
   els.invitationBlurb.textContent = data.analysis.themeBlurb;
   els.invitationStrengths.innerHTML = data.analysis.strengths
     .map((item) => `<li>${escapeHtml(item)}</li>`) 
@@ -423,26 +488,33 @@ function renderInvitations(data) {
 
   els.trackPlaceholder.classList.add("hidden");
   data.invitations.forEach((interviewer) => {
+    const role = interviewer.featured_role || {};
     const card = document.createElement("article");
-    card.className = "invitation-card";
+    card.className = `invitation-card ${isTechnical ? "" : "showcase-card"}`.trim();
     card.innerHTML = `
       <div class="invitation-head">
         <div class="invitation-avatar">${initialOf(interviewer.name)}</div>
         <div>
           <h4>${escapeHtml(interviewer.name)}</h4>
-          <p class="invitation-title">${escapeHtml(interviewer.title || "")}</p>
+          <p class="invitation-title">${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
           <div class="invitation-tags">
             ${(interviewer.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
           </div>
         </div>
       </div>
+      ${role.title ? `
+      <div class="invitation-role-block">
+        <strong>${escapeHtml(role.title)}</strong>
+        <p>${escapeHtml(role.summary || "")}</p>
+      </div>` : ""}
       <p class="invitation-copy">${escapeHtml(interviewer.invitation_copy || interviewer.tone || "")}</p>
       <div class="invitation-meta">
         <span>通过线：<b>${interviewer.pass_score}</b></span>
-        <span>${escapeHtml(interviewer.style || "")}</span>
+        <span>${escapeHtml(interviewer.card_hint || interviewer.style || "")}</span>
       </div>
       <button type="button" class="accept-btn">接受面试</button>
     `;
+    card.querySelector(".accept-btn").textContent = isTechnical ? "接受面试" : "选择这张卡";
     card.querySelector(".accept-btn").addEventListener("click", () => startInterview(interviewer.id));
     els.invitationList.appendChild(card);
   });
@@ -1061,8 +1133,9 @@ function resetAll() {
   if (state.selectedInterviewTrack === "technical" && state.bootstrap?.technicalRoles?.length) {
     state.selectedRoleId = state.bootstrap.technicalRoles[0].id;
   } else {
-    state.selectedRoleId = state.bootstrap?.roles?.[0]?.id ?? null;
+    state.selectedRoleId = null;
   }
+  renderTrackMode();
   renderRoles();
   renderInterviewTracks();
   els.answerInput.value = "";
@@ -1079,38 +1152,21 @@ function resetAll() {
 
 function buildResumePayload() {
   const isTechnical = state.selectedInterviewTrack === "technical";
-  const roleTitle = isTechnical
-    ? ""
-    : state.selectedRoleMode === "custom"
-      ? state.customRoleTitle.trim()
-      : "";
-  const roleId = isTechnical
-    ? state.selectedRoleId
-    : state.selectedRoleMode === "random"
-      ? "random"
-      : state.selectedRoleMode === "custom"
-        ? "custom"
-        : state.selectedRoleId;
   return {
     themeKeyword: "",
-    roleId,
-    roleTitle,
-    roleMode: isTechnical ? "preset" : state.selectedRoleMode,
+    roleId: isTechnical ? state.selectedRoleId : "",
+    roleTitle: "",
+    roleMode: isTechnical ? "preset" : "interviewer-owned",
     interviewTrack: state.selectedInterviewTrack,
     difficulty: state.selectedDifficulty,
     resumeMode: state.resumeMode,
-    resumeText: els.resumeText.value.trim(),
+    resumeText: isTechnical ? els.resumeText.value.trim() : "",
   };
 }
 
 function ensureRoleSelection() {
   if (state.selectedInterviewTrack === "technical") {
     return true;
-  }
-  if (state.selectedRoleMode === "custom" && !state.customRoleTitle.trim()) {
-    alert("请输入自定义岗位名称。");
-    els.customRoleInput.focus();
-    return false;
   }
   return true;
 }
