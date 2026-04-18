@@ -9,7 +9,7 @@
 ## 目录结构
 
 ```text
-backend/
+backends/tech_interview_backend/
   engine.py              轮次状态机：ask / answer / judge / drill / hint / event / final
   events.py              随机事件引擎（掷骰 / 结算 / 一次性触发）
   interviewers/          面试官注册表 —— 新增面试官 = 新建一个 .py 文件
@@ -65,7 +65,7 @@ AI_GAME_FORCE_MOCK=0
 
 ## 扩展：新增一位面试官
 
-在 `backend/interviewers/` 下新建一个 `.py` 文件，导出 `INTERVIEWER` 字典，包含人设、通过线、题库、深挖 / 提示概率、随机事件即可。框架会在进程启动时自动加载，无需改动其它文件。
+在 `backends/tech_interview_backend/interviewers/` 下新建一个 `.py` 文件，导出 `INTERVIEWER` 字典，包含人设、通过线、题库、深挖 / 提示概率、随机事件即可。框架会在进程启动时自动加载，无需改动其它文件。
 
 ## API 速览
 
