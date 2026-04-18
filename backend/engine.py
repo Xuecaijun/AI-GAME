@@ -82,11 +82,13 @@ class GameEngine:
     # ------------------------------------------------------------------ bootstrap
 
     def get_bootstrap(self) -> dict[str, Any]:
+        non_technical_cards = [public_card(item) for item in all_interviewers("non-technical")]
         return {
             "appName": "终面：AI面试官",
             "tagline": "AI 驱动的动态面试生存游戏",
             "roles": ROLE_LIBRARY,
             "technicalRoles": TECHNICAL_ROLES,
+            "nonTechnicalInterviewers": non_technical_cards,
             "interviewTracks": [
                 {
                     "id": "technical",
@@ -97,8 +99,8 @@ class GameEngine:
                 {
                     "id": "non-technical",
                     "label": "非技术面",
-                    "description": "接口预留中，后续可接入 HR 面、业务面、综合面等非技术流程。",
-                    "enabled": False,
+                    "description": "不用带简历，三位角色面试官会各带一份岗位邀约登场，选中谁就进入谁的面试。",
+                    "enabled": True,
                 },
             ],
             "difficulties": [{"id": key, **value} for key, value in DIFFICULTIES.items()],
@@ -124,35 +126,35 @@ class GameEngine:
 
     def build_invitations(self, payload: dict[str, Any]) -> dict[str, Any]:
         interview_track = str(payload.get("interviewTrack", "technical")).strip() or "technical"
+        difficulty = get_difficulty(payload.get("difficulty", "normal"))
+        resume_text = (payload.get("resumeText") or "").strip()
+        theme_keyword = (payload.get("themeKeyword") or "").strip()
+
+        if interview_track != "technical":
+            picked = list(all_interviewers("non-technical"))
+            if not picked:
+                raise ValueError("非技术面试官卡池为空，请检查 backend/interviewers/ 目录。")
+            return {
+                "role": None,
+                "difficulty": difficulty,
+                "analysis": self._build_nontechnical_lobby_analysis(picked),
+                "interviewTrack": interview_track,
+                "comingSoon": False,
+                "placeholder": None,
+                "invitations": [public_card(item) for item in picked[:3]],
+            }
+
+        if not resume_text:
+            raise ValueError("请先填写或生成简历。")
+
         role = resolve_role(
             payload.get("roleId", ""),
             payload.get("roleTitle", ""),
             interview_track=interview_track,
         )
-        difficulty = get_difficulty(payload.get("difficulty", "normal"))
-        resume_text = (payload.get("resumeText") or "").strip()
-        theme_keyword = (payload.get("themeKeyword") or "").strip()
-
-        if not resume_text:
-            raise ValueError("请先填写或生成简历。")
-
         analysis = self._analyze_resume(resume_text, role, theme_keyword)
 
-        if interview_track != "technical":
-            return {
-                "role": role,
-                "difficulty": difficulty,
-                "analysis": analysis,
-                "interviewTrack": interview_track,
-                "comingSoon": True,
-                "placeholder": {
-                    "title": "非技术面接口预留中",
-                    "description": "当前版本先保留非技术面入口，后续会在这里接入 HR 面、业务面、综合面等邀请流程。",
-                },
-                "invitations": [],
-            }
-
-        all_items = list(all_interviewers())
+        all_items = list(all_interviewers("technical"))
         if not all_items:
             raise ValueError("面试官池为空，请检查 backend/interviewers/ 目录。")
 
@@ -173,18 +175,17 @@ class GameEngine:
 
     def start_session(self, payload: dict[str, Any]) -> dict[str, Any]:
         interview_track = str(payload.get("interviewTrack", "technical")).strip() or "technical"
-        role = resolve_role(
-            payload.get("roleId", ""),
-            payload.get("roleTitle", ""),
-            interview_track=interview_track,
-        )
         difficulty = get_difficulty(payload.get("difficulty", "normal"))
-        interviewer = get_interviewer(payload.get("interviewerId", ""))
+        interviewer = get_interviewer(payload.get("interviewerId", ""), interview_track=interview_track)
         theme_keyword = (payload.get("themeKeyword") or "").strip()
         resume_mode = payload.get("resumeMode", "custom")
         provided_resume = (payload.get("resumeText") or "").strip()
+        role = self._resolve_session_role(payload, interview_track, interviewer)
 
-        if resume_mode == "ai-generated":
+        if interview_track != "technical":
+            resume_mode = "system-generated"
+            resume_text = provided_resume or generate_mock_resume(role, theme_keyword, difficulty)
+        elif resume_mode == "ai-generated":
             resume_text = provided_resume or generate_mock_resume(role, theme_keyword, difficulty)
         else:
             resume_text = provided_resume
@@ -193,7 +194,11 @@ class GameEngine:
             raise ValueError("简历内容不能为空。")
 
         analysis = self._analyze_resume(resume_text, role, theme_keyword)
-        resume_profile = self._build_resume_profile(resume_text, role, theme_keyword)
+        resume_profile = (
+            self._empty_resume_profile(role)
+            if interview_track != "technical"
+            else self._build_resume_profile(resume_text, role, theme_keyword)
+        )
 
         min_rounds = int(interviewer.get("min_rounds", 3))
         max_rounds = int(interviewer.get("max_rounds", 5))
@@ -222,6 +227,7 @@ class GameEngine:
         session: dict[str, Any] = {
             "id": session_id,
             "createdAt": time.time(),
+            "interviewTrack": interview_track,
             "role": role,
             "interviewer": interviewer,
             "difficulty": difficulty,
@@ -238,10 +244,10 @@ class GameEngine:
             "hintsUsed": 0,
             "currentQuestion": first_question,
             "currentQuestionType": "normal",
-            "currentQuestionKind": "resume",
+            "currentQuestionKind": first.get("questionKind", "resume"),
             "currentCodeQuestion": None,
             "currentTopic": first.get("topic", ""),
-            "currentHintDirections": [],
+            "currentHintDirections": first.get("hintDirections", []),
             "hintHistory": [],
             "currentDrillTargetId": first_target_id or None,
             "currentBoundProjectId": first_bound_project_id,
@@ -436,7 +442,7 @@ class GameEngine:
         session["transcript"].append({"speaker": "question", "text": question})
 
         # 深挖阶段也可能触发轮内事件
-        if session["pendingEvent"] is None:
+        if session["pendingEvent"] is None and self._events_enabled(session):
             event = roll_event(session["interviewer"], "intra_round", session)
             if event:
                 return self._attach_event(session, event, trigger="intra_round")
@@ -490,7 +496,7 @@ class GameEngine:
             return self._finalize(session)
 
         # 轮间事件
-        event = roll_event(session["interviewer"], "inter_round", session)
+        event = roll_event(session["interviewer"], "inter_round", session) if self._events_enabled(session) else None
         if event:
             if event.get("impact"):
                 return self._attach_event(session, event, trigger="inter_round")
@@ -555,7 +561,7 @@ class GameEngine:
             session["roundStartTranscriptIndex"] = len(session["transcript"]) - 1
 
         # 轮内事件
-        intra = roll_event(session["interviewer"], "intra_round", session)
+        intra = roll_event(session["interviewer"], "intra_round", session) if self._events_enabled(session) else None
         if intra:
             if intra.get("impact"):
                 return self._attach_event(session, intra, trigger="intra_round")
@@ -1086,9 +1092,10 @@ class GameEngine:
 
     def _build_round_question(self, session: dict[str, Any]) -> dict[str, Any]:
         drill_target = self._pick_round_drill_target(session)
-        workplace_question = self._pick_workplace_question(session)
+        workplace_question = None if session.get("interviewTrack") == "non-technical" else self._pick_workplace_question(session)
         tech_question = self._pick_tech_question(session)
-        use_workplace = bool(workplace_question) and session["roundIndex"] > 1 and random.random() < 0.15
+        workplace_probability = 0.45 if session.get("interviewTrack") == "non-technical" else 0.15
+        use_workplace = bool(workplace_question) and session["roundIndex"] > 1 and random.random() < workplace_probability
         resume_has_tech_anchor = self._resume_has_tech_anchor(session, drill_target)
         use_knowledge = bool(tech_question) and (not drill_target or resume_has_tech_anchor or random.random() < 0.5)
 
@@ -1132,7 +1139,7 @@ class GameEngine:
                     for item in choice.get("hint_directions", [])
                     if str(item).strip()
                 ][:3]
-                question_kind = "knowledge"
+                question_kind = "workplace" if session.get("interviewTrack") == "non-technical" else "knowledge"
                 drill_target = None
             else:
                 topic = "开场"
@@ -1353,10 +1360,28 @@ class GameEngine:
             except AIClientError:
                 pass
 
+        if opening_target:
+            opening_kind = "resume"
+        elif session_track := interviewer.get("interview_tracks", []):
+            opening_kind = "workplace" if "non-technical" in session_track else "knowledge"
+        else:
+            opening_kind = "knowledge"
+        opening_hint_directions = []
+        if not opening_target:
+            opening_bank = interviewer.get("question_bank", [])
+            if opening_bank:
+                opening_hint_directions = [
+                    str(item).strip()
+                    for item in opening_bank[0].get("hint_directions", [])
+                    if str(item).strip()
+                ][:3]
+
         return {
             "openingLine": interviewer.get("opening_line", "我们开始。"),
             "firstQuestion": self._local_opening_question(role, interviewer, theme_keyword, resume_profile),
             "focusPoints": focus_points,
+            "questionKind": opening_kind,
+            "hintDirections": opening_hint_directions,
             "topic": (opening_target or {}).get("topic") or "opening",
             "drillTargetId": str((opening_target or {}).get("id", "") or ""),
             "boundProjectId": str((opening_target or {}).get("sourceProjectId", "") or ""),
@@ -1519,6 +1544,60 @@ class GameEngine:
             ],
         }
 
+    def _resolve_session_role(
+        self,
+        payload: dict[str, Any],
+        interview_track: str,
+        interviewer: dict[str, Any],
+    ) -> dict[str, Any]:
+        if interview_track == "non-technical" and interviewer.get("featured_role"):
+            return copy.deepcopy(interviewer["featured_role"])
+        return resolve_role(
+            payload.get("roleId", ""),
+            payload.get("roleTitle", ""),
+            interview_track=interview_track,
+        )
+
+    def _events_enabled(self, session: dict[str, Any]) -> bool:
+        return session.get("interviewTrack") != "non-technical"
+
+    def _empty_resume_profile(self, role: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "headline": f"{role['title']} 候选人，擅长 {', '.join(role.get('keywords', [])[:3])}",
+            "skills": {
+                "proficient": list(role.get("keywords", [])[:4]),
+                "familiar": list(role.get("keywords", [])[4:6]),
+                "claimedButUnverified": [],
+            },
+            "projects": [],
+            "metrics": [],
+            "drillTargets": [],
+            "inconsistencies": [],
+        }
+
+    def _build_nontechnical_lobby_analysis(self, interviewers: list[dict[str, Any]]) -> dict[str, Any]:
+        names = [str(item.get("name", "")).strip() for item in interviewers[:3] if str(item.get("name", "")).strip()]
+        openings = [
+            str((item.get("featured_role") or {}).get("title", "")).strip()
+            for item in interviewers[:3]
+            if str((item.get("featured_role") or {}).get("title", "")).strip()
+        ]
+        summary = "非技术面改成了角色卡选秀场。每位面试官都会带着符合人设的岗位进场，你挑中哪一张，就进哪一场戏。"
+        if names and openings:
+            summary = f"今晚到场的是 {', '.join(names)}，他们分别带来了 {', '.join(openings)} 这些岗位。"
+        return {
+            "themeBlurb": summary,
+            "strengths": [
+                "不用准备简历，直接按兴趣挑岗位开聊。",
+                "同一套面试流程，但问题会明显带人设语气和戏剧感。",
+                "每张卡都把面试官身份和招聘岗位绑在一起，选人也等于选岗。",
+            ],
+            "riskPoints": [
+                "非技术面更看临场表达、判断依据和角色匹配，不容易靠背模板过关。",
+                "同一位面试官会持续按自己的人设追问，回答太空容易被拆穿。",
+            ],
+        }
+
     # ------------------------------------------------------------------ descriptor
 
     def _descriptor(
@@ -1539,6 +1618,7 @@ class GameEngine:
             "difficulty": session["difficulty"],
             "themeKeyword": session["themeKeyword"],
             "resumeMode": session["resumeMode"],
+            "interviewTrack": session.get("interviewTrack", "technical"),
         }
         metrics = {
             "roundIndex": session["roundIndex"],
@@ -2314,6 +2394,9 @@ class GameEngine:
                 "gentle-senior": f"嗯，这里我得停一下，{conflict}，这会让我分不清你到底做的是哪一套。",
                 "steady-engineer": f"这段前后对不上。{conflict}，所以我暂时不能把它当成可信经历。",
                 "strict-architect": f"不行，{conflict}。这不是细节没讲清，是事实都没对上。",
+                "master-strategist": f"此处前后失据。{conflict}。若连军报都对不上，我如何敢把筹策托付于你？",
+                "queen-of-order": f"这话前后失统。{conflict}。连事实都压不住，何谈替我理事？",
+                "detective-kid": f"等等，这里不对劲。{conflict}。证词一旦对不上，我就不能把它当成真相。",
             }
             return table.get(interviewer_id, table["steady-engineer"])
 
@@ -2335,6 +2418,21 @@ class GameEngine:
                     "correct": f"行，至少不是空表态，安排和边界都说到了。",
                     "partial": f"别只讲态度，{gap}，我还没听到你的处理方式。",
                     "wrong": f"不行，{gap}。这种题我想听明确结论，不是套话。",
+                },
+                "master-strategist": {
+                    "correct": f"可以，你把“{detail}”这一步讲出了军令和取舍，不是纸上谈兵。",
+                    "partial": f"方向未偏，不过 {gap}，这一步还缺落子与后手。",
+                    "wrong": f"这答法还立不住，{gap}。我听见了态度，却没听见真正的布阵。",
+                },
+                "queen-of-order": {
+                    "correct": f"这才像样。“{detail}”里有裁断、有分责，也看得见你压场的手腕。",
+                    "partial": f"意思到了，但 {gap}，威信和执行还没被你讲实。",
+                    "wrong": f"不够。{gap}。若只会讲漂亮话，场子一乱你就镇不住。",
+                },
+                "detective-kid": {
+                    "correct": f"这次能听出来了，你把“{detail}”说成了线索、判断和验证，不只是感觉。",
+                    "partial": f"推理方向没跑偏，但 {gap}，证据链还差关键一环。",
+                    "wrong": f"这题你说得太像猜测了，{gap}。没有证据链，我不会采信。",
                 },
             }
             return table.get(interviewer_id, table["steady-engineer"])[verdict]
@@ -2438,6 +2536,8 @@ class GameEngine:
 
     def _local_drill_question(self, session: dict[str, Any]) -> dict[str, Any]:
         interviewer_id = session["interviewer"]["id"]
+        if interviewer_id in {"master-strategist", "queen-of-order", "detective-kid"}:
+            return self._nontechnical_local_drill_question(session)
         depth = max(1, int(session["drillDepth"]))
         current_target = self._current_drill_target(session)
         bound_project = self._bound_project(session, current_target)
@@ -2535,6 +2635,8 @@ class GameEngine:
 
     def _local_hint(self, session: dict[str, Any]) -> str:
         interviewer_id = session["interviewer"]["id"]
+        if interviewer_id in {"master-strategist", "queen-of-order", "detective-kid"}:
+            return self._nontechnical_local_hint(session)
         used = session["hintsUsed"]
         if session.get("currentQuestionKind") == "workplace":
             bank = {
@@ -2607,11 +2709,73 @@ class GameEngine:
                 return variant
         return "直接回答最关键的判断点，并补一个能验证的细节。"
 
+    def _nontechnical_local_drill_question(self, session: dict[str, Any]) -> dict[str, Any]:
+        interviewer_id = session["interviewer"]["id"]
+        depth = max(1, int(session["drillDepth"]))
+        anchor = (
+            (session.get("lastAnswerHighlights") or [""])[0]
+            or (session.get("lastAnswerGaps") or [""])[0]
+            or self._extract_anchor_from_answer(self._latest_candidate_text(session))
+            or session.get("currentTopic")
+            or "刚才那一步"
+        )
+
+        if interviewer_id == "master-strategist":
+            variants = [
+                f"围绕“{anchor}”，你别再讲大势，直接告诉我你第一道军令是什么，为什么是这道令先下。",
+                f"若把“{anchor}”当作这一局的关键落子，你舍了什么，换来了什么？",
+                f"再往深一层说，“{anchor}”这一步若失手，整盘局最先崩的是哪一环，你如何设后手？",
+            ]
+        elif interviewer_id == "queen-of-order":
+            variants = [
+                f"就盯着“{anchor}”回答。你当时到底定了什么规矩，谁必须服从，谁需要安抚？",
+                f"围绕“{anchor}”，你拍板的依据是什么？别讲大家意见，讲你自己的裁断。",
+                f"若“{anchor}”引来反弹，你如何既不失威信，又不让执行失速？",
+            ]
+        else:
+            variants = [
+                f"等等，“{anchor}”这里像有一块拼图没补上。你最先发现的异常线索到底是什么？",
+                f"围绕“{anchor}”，你是怎么排除其他嫌疑解释，最后锁到这条真相链上的？",
+                f"如果“{anchor}”是误导线索，你原本准备怎么验证并推翻它？",
+            ]
+
+        return {
+            "question": variants[min(depth - 1, len(variants) - 1)],
+            "drillTarget": self._current_drill_target(session),
+            "topic": anchor,
+        }
+
+    def _nontechnical_local_hint(self, session: dict[str, Any]) -> str:
+        interviewer_id = session["interviewer"]["id"]
+        anchor = session.get("currentTopic") or "这一点"
+        banks = {
+            "master-strategist": [
+                f"先别铺全局，就围着“{anchor}”说。先讲你的主目标，再讲调度和取舍。",
+                f"把它讲成一场布阵: 谁先动，谁后动，为什么这样排。",
+            ],
+            "queen-of-order": [
+                f"少讲气氛，多讲掌控。围绕“{anchor}”直接说你怎么定规、分责、推进。",
+                f"先给裁断，再讲安抚。我要听见你如何拍板，不是大家如何讨论。",
+            ],
+            "detective-kid": [
+                f"把“{anchor}”当成案发现场。先说异常，再说推理，最后说验证。",
+                f"别先给结论，先给证据。你最确信的那条线索是什么？",
+            ],
+        }
+        variants = banks.get(interviewer_id, banks["master-strategist"])
+        for variant in variants:
+            if not self._hint_seen(session, variant):
+                return variant
+        return variants[-1]
+
     def _timeout_feedback(self, session: dict[str, Any]) -> str:
         table = {
             "gentle-senior": "时间到了，没事，我们先过这一题。",
             "steady-engineer": "时间到，这题我先按没答完整处理。",
             "strict-architect": "超时了，这题按放弃算。",
+            "master-strategist": "时机已过。这一题我先按你未及下令处理。",
+            "queen-of-order": "时间到了。临场若迟疑太久，局面就不会等你。",
+            "detective-kid": "时间到。还没来得及把证据链补全，这一题我只能先记下疑点。",
         }
         return table.get(session["interviewer"]["id"], "时间到了。")
 
@@ -2660,6 +2824,21 @@ class GameEngine:
                 "partial": "方向没全错，但细节还撑不起这个结论。",
                 "wrong": "不行，这段回答经不起追问。",
             },
+            "master-strategist": {
+                "correct": "这一答有章法，进退与取舍都不是乱的。",
+                "partial": "局势你看到了，但落子还不够准。",
+                "wrong": "这番话还像空城鼓噪，听不出你真能定策。",
+            },
+            "queen-of-order": {
+                "correct": "可以，听得出你能断事，不只是随声附和。",
+                "partial": "意思有了，但威信、规矩和执行还没立住。",
+                "wrong": "不够。若真把场交给你，局面多半先乱。",
+            },
+            "detective-kid": {
+                "correct": "这次像侦探了，你给的是线索和判断，不是拍脑袋。",
+                "partial": "推理方向对，但证据链还没扣紧。",
+                "wrong": "这不行，像猜，不像查出来的。",
+            },
         }
         return table.get(interviewer_id, table["steady-engineer"])[verdict]
 
@@ -2676,6 +2855,18 @@ class GameEngine:
             "strict-architect": {
                 "offer": "能扛住追问，说明你手上真有活。",
                 "reject": "简历写得挺满，但回答没把它撑住。",
+            },
+            "master-strategist": {
+                "offer": "你不是只会谈势，你是真能在乱局里定先后、分轻重的人。",
+                "reject": "你看见了几分局势，却还没有把筹策真正落到手上。",
+            },
+            "queen-of-order": {
+                "offer": "你说话能立规矩，做事能压住场，这才是可用之才。",
+                "reject": "你有几分胆气，但还没练到能在众声里把秩序立稳。",
+            },
+            "detective-kid": {
+                "offer": "你没有急着站队，而是一路把线索查到能还原真相，这点很厉害。",
+                "reject": "你不是完全没感觉，只是很多判断还停在直觉，没有变成证据链。",
             },
         }
         return quotes.get(interviewer_id, quotes["steady-engineer"]).get(verdict, "")
