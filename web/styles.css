@@ -974,12 +974,73 @@ textarea:focus {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
+  position: relative;
 }
 .timer-bar > div {
   height: 100%;
   width: 100%;
   background: linear-gradient(90deg, var(--success), var(--accent-2), var(--danger));
   transition: width 200ms linear;
+}
+
+.horse-track {
+  overflow: visible;
+  height: 12px;
+  border: 1px solid rgba(120, 10, 10, 0.72);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 238, 228, 0.22) 0,
+      rgba(255, 238, 228, 0.22) 2px,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, 0) 12px
+    ),
+    linear-gradient(180deg, #c9473a 0%, #b0382d 48%, #92271f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 205, 190, 0.28),
+    inset 0 -2px 6px rgba(90, 12, 10, 0.36),
+    0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.horse-track::before,
+.horse-track::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 234, 224, 0.62);
+  pointer-events: none;
+}
+
+.horse-track::before { top: -3px; }
+.horse-track::after { bottom: -3px; }
+
+.timer-horse {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -60%);
+  pointer-events: none;
+  background: url("./assets/imgs/images.png") center / contain no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+  transition: left 200ms linear, transform 200ms ease;
+}
+
+.timer-horse.is-urgent {
+  animation: horse-urgent-bounce 420ms ease-in-out infinite;
+}
+
+@keyframes horse-urgent-bounce {
+  0%,
+  100% {
+    transform: translate(-50%, -60%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -72%) scale(1.08);
+  }
 }
 .timer-text {
   font-variant-numeric: tabular-nums;
@@ -1160,6 +1221,47 @@ textarea:focus {
  * ================================================================== */
 
 #result-view { padding: 24px; }
+
+.report-card {
+  overflow: hidden;
+}
+
+.report-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 18px;
+  align-items: start;
+}
+
+.tier-block {
+  min-width: 0;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.tier-img-frame {
+  width: min(32vw, 240px);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.tier-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.report-verdict-slot {
+  min-width: 0;
+}
 
 .result-layout {
   display: grid;
@@ -1386,7 +1488,9 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .start-row,
   .fake-toolbar,
   .recommendation-toolbar,
-  .resume-actions {
+  .resume-actions,
+  .report-card-head,
+  .tier-block {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -1396,6 +1500,11 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .dimension-grid,
   .card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tier-img-frame {
+    width: 100%;
+    max-width: 100%;
   }
 
   .tile-grid { grid-template-columns: 1fr; grid-template-rows: none; }
@@ -1633,6 +1742,8 @@ body.theme-recruit .start-actions {
 body.theme-recruit .start-view.fx-ready {
   position: relative;
   overflow: hidden;
+  align-items: flex-start;
+  padding-bottom: 260px;
 }
 
 body.theme-recruit .start-view.fx-ready::after {
@@ -1650,6 +1761,381 @@ body.theme-recruit .start-view.fx-ready::after {
     transparent 5px
   );
   animation: startScanMove 8s linear infinite;
+}
+
+body.theme-recruit .start-race-scene {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 82vh;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.theme-recruit .start-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+body.theme-recruit .start-loading-card {
+  position: relative;
+  z-index: 21;
+  pointer-events: auto;
+  min-width: 320px;
+  padding: 18px 20px;
+  border-radius: 2px;
+  border: 1px solid #7f9db9;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f2f2f2 100%);
+  box-shadow:
+    inset 1px 1px 0 #ffffff,
+    inset -1px -1px 0 #b7c4d8,
+    0 10px 20px rgba(0, 0, 0, 0.22);
+}
+
+body.theme-recruit .start-loading-title {
+  margin: 0;
+  color: #0f2f58;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+body.theme-recruit .start-loading-sub {
+  margin: 6px 0 10px;
+  color: #3f5878;
+  font-size: 0.82rem;
+}
+
+body.theme-recruit .start-loading-bar {
+  height: 10px;
+  border-radius: 1px;
+  border: 1px solid #7f9db9;
+  background: #ffffff;
+  box-shadow: inset 1px 1px 0 #d8e0eb;
+  overflow: hidden;
+}
+
+body.theme-recruit .start-loading-bar > span {
+  display: block;
+  height: 100%;
+  width: 38%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #3f7ea8 0 8px,
+      #2d6389 8px 16px
+    );
+  animation: startLoadingXpBar 820ms linear infinite;
+}
+
+@keyframes startLoadingXpBar {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(280%); }
+}
+
+body.theme-recruit .start-race-track {
+  position: absolute;
+  inset: 0;
+  border-top: 2px solid #2d6e30;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #4ea649 0 16px,
+      #469942 16px 32px,
+      #3f8b3b 32px 48px,
+      #4a9f45 48px 64px
+    ),
+    linear-gradient(180deg, #58b450 0%, #479f44 56%, #377f38 100%);
+  box-shadow:
+    inset 0 6px 0 rgba(176, 224, 165, 0.12),
+    inset 0 -12px 18px rgba(17, 58, 17, 0.24);
+  image-rendering: pixelated;
+  overflow: hidden;
+}
+
+body.theme-recruit .start-race-track::before,
+body.theme-recruit .start-race-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 三层速度：近景快 / 中景中 / 远景慢 */
+body.theme-recruit .start-race-track::before {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 10px, #3a8a37 10px 14px, transparent 14px 28px),
+    repeating-linear-gradient(90deg, transparent 0 14px, #4ea649 14px 17px, transparent 17px 36px),
+    repeating-linear-gradient(90deg, transparent 0 18px, #63b85b 18px 20px, transparent 20px 44px);
+  background-size: 220px 36%, 260px 34%, 320px 30%;
+  background-position: 0 100%, 0 66%, 0 34%;
+  background-repeat: repeat-x;
+  animation: none;
+  opacity: 0.62;
+}
+
+/* 扁平色块草丛细节层（全绿系，避免出现非绿色区域） */
+body.theme-recruit .start-race-track::after {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 19px,
+      #66ba5f 19px 23px,
+      transparent 23px 41px,
+      #5aab53 41px 45px,
+      transparent 45px 67px,
+      #73c36b 67px 70px,
+      transparent 70px 96px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 31px,
+      #4e9f48 31px 35px,
+      transparent 35px 58px,
+      #5caf56 58px 61px,
+      transparent 61px 92px
+    );
+  background-size: 420px 44%, 360px 32%;
+  background-position: 0 88%, 0 72%;
+  background-repeat: repeat-x;
+  animation: none;
+  opacity: 0.88;
+}
+
+body.theme-recruit .start-race-horse {
+  position: absolute;
+  left: -40px;
+  width: 1px;
+  height: 1px;
+  image-rendering: pixelated;
+  transform-origin: top left;
+  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.28));
+  animation-name: startHorseRun;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+
+  /* 严格 1:1 像素格马身（更大、更像马） */
+  background: transparent;
+  box-shadow:
+    /* 后腿/尾巴 */
+    1px 13px #4f2b18, 1px 14px #4f2b18, 1px 15px #4f2b18,
+    2px 11px #4f2b18, 2px 12px #4f2b18, 2px 13px #5f331d, 2px 14px #5f331d,
+    3px 10px #5f331d, 3px 11px #5f331d, 3px 12px #5f331d,
+    4px 9px #5f331d, 4px 10px #5f331d,
+    5px 8px #5f331d,
+    6px 8px #5f331d,
+    /* 身体后段 */
+    6px 9px #7a4325, 7px 9px #8a4f2d, 8px 9px #8a4f2d, 9px 9px #8a4f2d, 10px 9px #7a4325,
+    5px 10px #7a4325, 6px 10px #8a4f2d, 7px 10px #8a4f2d, 8px 10px #8a4f2d, 9px 10px #8a4f2d, 10px 10px #8a4f2d, 11px 10px #7a4325,
+    5px 11px #6a3b21, 6px 11px #8a4f2d, 7px 11px #8a4f2d, 8px 11px #b67a4b, 9px 11px #8a4f2d, 10px 11px #8a4f2d, 11px 11px #6a3b21,
+    6px 12px #7a4325, 7px 12px #b67a4b, 8px 12px #b67a4b, 9px 12px #b67a4b, 10px 12px #7a4325,
+    7px 13px #7a4325, 8px 13px #6a3b21, 9px 13px #7a4325,
+    /* 脖子 */
+    10px 8px #8a4f2d, 11px 8px #8a4f2d, 12px 8px #8a4f2d,
+    10px 7px #8a4f2d, 11px 7px #8a4f2d, 12px 7px #8a4f2d, 13px 7px #8a4f2d,
+    11px 6px #8a4f2d, 12px 6px #8a4f2d, 13px 6px #8a4f2d,
+    12px 5px #8a4f2d, 13px 5px #8a4f2d,
+    /* 头部 */
+    14px 6px #8a4f2d, 15px 6px #8a4f2d, 16px 6px #8a4f2d,
+    14px 7px #8a4f2d, 15px 7px #8a4f2d, 16px 7px #8a4f2d,
+    13px 8px #8a4f2d, 14px 8px #8a4f2d, 15px 8px #8a4f2d,
+    13px 9px #8a4f2d, 14px 9px #8a4f2d, 15px 9px #8a4f2d,
+    14px 10px #8a4f2d, 15px 10px #8a4f2d,
+    14px 7px #1e120b,
+    15px 6px #b67a4b, 15px 7px #b67a4b,
+    /* 鬃毛 */
+    11px 6px #b67a4b, 12px 6px #b67a4b, 13px 6px #b67a4b,
+    10px 6px #b67a4b, 10px 7px #b67a4b,
+    /* 鼻口 */
+    16px 8px #5f331d, 16px 9px #5f331d;
+}
+
+body.theme-recruit .start-race-horse::before,
+body.theme-recruit .start-race-horse::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  background: transparent;
+}
+
+/* 两套更清晰的腿部帧：前伸 / 腾空 / 落地 / 收腿 */
+body.theme-recruit .start-race-horse::before {
+  animation: startHorseLegsA 180ms steps(2, end) infinite;
+  box-shadow:
+    2px 14px #4f2b18, 3px 14px #4f2b18,
+    3px 15px #4f2b18, 4px 15px #4f2b18,
+    8px 13px #5f331d, 9px 13px #5f331d,
+    9px 14px #5f331d, 10px 14px #5f331d;
+}
+
+body.theme-recruit .start-race-horse::after {
+  animation: startHorseLegsB 180ms steps(2, end) infinite;
+  box-shadow:
+    2px 15px #5f331d, 3px 15px #5f331d,
+    3px 16px #5f331d, 4px 16px #5f331d,
+    8px 14px #5f331d, 9px 14px #5f331d,
+    9px 15px #5f331d, 10px 15px #5f331d;
+}
+
+
+body.theme-recruit .start-race-horse::before,
+body.theme-recruit .start-race-horse::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  background: transparent;
+}
+
+/* 严格 1:1 像素腿部帧动画 */
+body.theme-recruit .start-race-horse::before {
+  animation: startHorseLegsA 180ms steps(2, end) infinite;
+}
+
+body.theme-recruit .start-race-horse::after {
+  animation: startHorseLegsB 180ms steps(2, end) infinite;
+}
+
+body.theme-recruit .start-race-horse::before,
+body.theme-recruit .start-race-horse::after {
+  box-shadow:
+    /* 前后腿四态 */
+    4px 14px #5f331d, 5px 14px #5f331d,
+    5px 15px #5f331d, 6px 15px #5f331d,
+    8px 14px #5f331d, 9px 14px #5f331d,
+    9px 15px #5f331d, 10px 15px #5f331d;
+}
+
+body.theme-recruit .start-race-horse {
+  box-shadow:
+    /* 后腿/尾巴 */
+    1px 10px #4f2b18, 1px 11px #4f2b18, 2px 9px #4f2b18, 2px 10px #4f2b18,
+    3px 8px #5f331d, 4px 8px #5f331d,
+    2px 11px #5f331d, 3px 11px #5f331d,
+    /* 胴体下沿 */
+    4px 9px #7a4325, 5px 9px #8a4f2d, 6px 9px #8a4f2d, 7px 9px #8a4f2d, 8px 9px #7a4325,
+    3px 10px #7a4325, 4px 10px #8a4f2d, 5px 10px #8a4f2d, 6px 10px #8a4f2d, 7px 10px #8a4f2d, 8px 10px #8a4f2d, 9px 10px #6a3b21,
+    3px 11px #6a3b21, 4px 11px #8a4f2d, 5px 11px #8a4f2d, 6px 11px #b67a4b, 7px 11px #8a4f2d, 8px 11px #8a4f2d, 9px 11px #6a3b21,
+    4px 12px #7a4325, 5px 12px #b67a4b, 6px 12px #b67a4b, 7px 12px #b67a4b, 8px 12px #7a4325,
+    5px 13px #7a4325, 6px 13px #6a3b21, 7px 13px #7a4325,
+    /* 前躯干和脖子 */
+    8px 8px #8a4f2d, 9px 8px #8a4f2d, 10px 8px #8a4f2d,
+    7px 7px #8a4f2d, 8px 7px #8a4f2d, 9px 7px #8a4f2d, 10px 7px #8a4f2d,
+    7px 6px #8a4f2d, 8px 6px #8a4f2d, 9px 6px #8a4f2d, 10px 6px #8a4f2d, 11px 6px #8a4f2d,
+    8px 5px #8a4f2d, 9px 5px #8a4f2d, 10px 5px #8a4f2d,
+    /* 头部 */
+    11px 6px #8a4f2d, 12px 6px #8a4f2d, 13px 6px #8a4f2d,
+    11px 7px #8a4f2d, 12px 7px #8a4f2d, 13px 7px #8a4f2d,
+    10px 8px #8a4f2d, 11px 8px #8a4f2d, 12px 8px #8a4f2d,
+    10px 9px #8a4f2d, 11px 9px #8a4f2d, 12px 9px #8a4f2d,
+    11px 10px #8a4f2d, 12px 10px #8a4f2d,
+    11px 7px #1e120b,
+    /* 鬃毛高光 */
+    9px 6px #b67a4b, 10px 6px #b67a4b, 10px 7px #b67a4b,
+    5px 8px #b67a4b, 6px 8px #b67a4b, 7px 8px #b67a4b,
+    /* 鼻口高光 */
+    13px 8px #5f331d, 13px 9px #5f331d;
+}
+
+body.theme-recruit .start-race-horse--front {
+  bottom: calc(18vh + 4px);
+  animation-duration: 4.2s;
+  --horse-scale: 15;
+}
+
+body.theme-recruit .start-race-horse--mid {
+  bottom: calc(18vh + 120px);
+  animation-duration: 5.8s;
+  animation-delay: -1.4s;
+  opacity: 0.92;
+  --horse-scale: 13.5;
+}
+
+body.theme-recruit .start-race-horse--back {
+  bottom: calc(18vh + 244px);
+  animation-duration: 7.4s;
+  animation-delay: -2.8s;
+  opacity: 0.82;
+  --horse-scale: 12;
+}
+
+body.theme-recruit .landing-card {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes startHorseRun {
+  0% {
+    left: -110px;
+    transform: translateY(0) scale(var(--horse-scale, 1));
+  }
+  25% {
+    transform: translateY(-4px) scale(var(--horse-scale, 1));
+  }
+  50% {
+    transform: translateY(0) scale(var(--horse-scale, 1));
+  }
+  75% {
+    transform: translateY(-5px) scale(var(--horse-scale, 1));
+  }
+  100% {
+    left: calc(100% + 80px);
+    transform: translateY(0) scale(var(--horse-scale, 1));
+  }
+}
+
+@keyframes startHorseLegsA {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 0.96;
+    transform: translateX(1px);
+  }
+}
+
+@keyframes startHorseLegsB {
+  0%,
+  100% {
+    opacity: 0.96;
+    transform: translateX(1px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes startGrassScrollParallax {
+  from {
+    background-position: 0 100%, 0 66%, 0 34%;
+  }
+  to {
+    background-position: -220px 100%, -130px 66%, -70px 34%;
+  }
+}
+
+@keyframes startGrassScrollDetails {
+  from {
+    background-position: 0 88%, 0 72%;
+  }
+  to {
+    background-position: -120px 88%, -60px 72%;
+  }
 }
 
 body.theme-recruit .landing-card.fx-card-enter {
@@ -2095,9 +2581,9 @@ body.theme-recruit .nontech-rune-card {
 
 body.theme-recruit .nontech-rune-portrait {
   width: 100%;
-  height: 420px;
+  margin: 0 auto;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background:
     radial-gradient(circle at 50% 12%, rgba(255, 220, 143, 0.18), transparent 38%),
@@ -2106,15 +2592,28 @@ body.theme-recruit .nontech-rune-portrait {
 
 body.theme-recruit .nontech-rune-portrait .boss-invite-avatar {
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 0;
+  display: block;
   border-radius: 0;
   border: 0;
-  font-size: 3rem;
+  font-size: 2rem;
+}
+
+body.theme-recruit .nontech-rune-portrait .boss-invite-avatar img,
+body.theme-recruit .boss-invite-avatar img {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center top;
+  display: block;
 }
 
 body.theme-recruit .nontech-rune-portrait .boss-invite-avatar.has-image img {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 
@@ -2562,7 +3061,7 @@ body.theme-recruit .reject-card {
   }
 
   body.theme-recruit .nontech-rune-portrait {
-    height: 340px;
+    max-width: none;
   }
 
   body.theme-recruit .boss-invite-cta {

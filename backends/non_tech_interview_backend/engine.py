@@ -63,6 +63,30 @@ DIFFICULTIES = {
     "hard": {"id": "hard", "label": "硬核", "description": "追问更紧，容错更低", "max_turns": 5, "starting_stress": 30},
 }
 
+def _preview_nontech_pool(limit: int = 3) -> list[dict[str, Any]]:
+    pool = _nontech_pool()
+    if not pool:
+        return []
+
+    by_id = {str(item.get("id")): item for item in pool}
+    preview: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for interviewer_id in PREVIEW_PRIORITY_IDS:
+        item = by_id.get(interviewer_id)
+        if not item:
+            continue
+        preview.append(item)
+        seen.add(interviewer_id)
+
+    remaining = sorted(
+        (item for item in pool if str(item.get("id")) not in seen),
+        key=lambda item: (int(item.get("order", 999)), str(item.get("id", ""))),
+    )
+    preview.extend(remaining)
+    return preview[:limit]
+
+
 def _nontech_pool() -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for item in base_all_interviewers("non-technical"):
@@ -376,10 +400,18 @@ class GameEngine:
         verdict = "offer" if score >= pass_score else "reject"
         quote = session["interviewer"].get("offer_reject_commentary", {})
         interviewer_quote = quote.get("offer" if verdict == "offer" else "reject") or "这份差事，能不能交给你，我心里有数了。"
+        if verdict == "offer":
+            summary = "这场你按角色语境讲判断、讲取舍，追问下也能稳住节奏，像真在这份差事里待过。"
+            one_liner = "感觉你是那种进组就能接活的人"
+        else:
+            summary = "这场你有方向，但被追问后就开始讲得像口号，具体怎么判断、怎么落地，还没讲扎实。"
+            one_liner = "感觉你是那种大方向都有就是不动手的人"
         report = {
             "verdict": verdict,
             "verdictLabel": "通过" if verdict == "offer" else "未录用",
-            "summary": "你在这场角色面试中展现了稳定判断与表达。" if verdict == "offer" else "你的回答有思路，但在取舍与落地上仍需加强。",
+            "summary": summary,
+            "oneLiner": one_liner,
+            "tier": self._resolve_tier(score),
             "interviewerQuote": interviewer_quote,
             "highlight": "能把复杂局面拆成可执行步骤。",
             "flop": "在高压追问下有时会变空泛。",
@@ -393,6 +425,22 @@ class GameEngine:
             "forcedEndReason": "",
         }
         return self._descriptor(session, phase="final", report=report)
+
+    # 评级档位：90+ 千里马；80-89 赤兔；70-79 驽马；55-69 骡子；<55 驴
+    _TIER_TABLE = (
+        (90, {"id": "qianlima", "label": "千里马", "tagline": "一场下来面试官都想要的人"}),
+        (80, {"id": "chitu", "label": "赤兔马", "tagline": "关键回合能打出漂亮仗"}),
+        (70, {"id": "numa", "label": "驽马", "tagline": "够用，就是没惊喜"}),
+        (55, {"id": "luozi", "label": "骡子", "tagline": "耐操是真的，亮点不多"}),
+        (0, {"id": "lv", "label": "驴", "tagline": "这场基本是被牵着走的"}),
+    )
+
+    def _resolve_tier(self, session_score: int) -> dict[str, str]:
+        score = int(session_score or 0)
+        for floor, tier in self._TIER_TABLE:
+            if score >= floor:
+                return dict(tier)
+        return dict(self._TIER_TABLE[-1][1])
 
     def _close_round(self, session: dict[str, Any]) -> None:
         session["roundScores"].append(

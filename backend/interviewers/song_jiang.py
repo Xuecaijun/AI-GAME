@@ -7,7 +7,7 @@ INTERVIEWER = {
     "title": "梁山头领 / 及时雨",
     "identity": "绿林聚义面试官",
     "order": 150,
-    "avatar": "/assets/interviewers/song-jiang.png",
+    "avatar": "assets/interviewers/song-jiang.png",
     "interview_tracks": ["non-technical"],
     "style": "善于笼络人心，重义气，也极看重乱局中如何把人拢住。",
     "tone": "他说话表面和气，实际一直在看你是否懂人情、讲分寸、能把一帮脾气各异的人拢成一股劲。",

@@ -29,15 +29,6 @@ const state = {
   },
 };
 
-const dimensionLabels = {
-  roleFit: "岗位匹配度",
-  logic: "逻辑表达",
-  depth: "专业深度",
-  consistency: "一致性",
-  composure: "抗压表现",
-  adaptability: "临场反应",
-};
-
 const TECH_COMPANY_NAMES = ["鹅讯", "志节", "化为", "北度", "啊里"];
 
 const TECH_ROLE_HINTS = {
@@ -49,6 +40,19 @@ const TECH_ROLE_HINTS = {
   "client-engineer": ["客户端", "android", "ios", "swift", "kotlin", "移动端", "app"],
   "test-engineer": ["测试", "自动化测试", "qa", "回归", "ci", "接口测试", "质量保障"],
 };
+
+const INTERVIEWER_FILLERS = [
+  "嗯，我看一下。",
+  "稍等，我捋一捋你的思路。",
+  "好，我想一下你这段回答。",
+  "行，我先过一遍重点。",
+  "嗯，这里我确认一下细节。",
+  "让我对一下你刚才提到的点。",
+  "好，等我组织一下下一问。",
+  "嗯，你这段我先消化一下。",
+  "我看下你这个说法落在哪个点上。",
+  "稍等，我顺着你的回答往下想一下。",
+];
 
 const el = (id) => document.getElementById(id);
 
@@ -117,6 +121,7 @@ const els = {
   phaseIndicator: el("phase-indicator"),
   drillIndicator: el("drill-indicator"),
   timerFill: el("timer-fill"),
+  timerHorse: el("timer-horse"),
   timerText: el("timer-text"),
   answerDock: document.querySelector(".answer-dock"),
   answerInput: el("answer-input"),
@@ -151,13 +156,10 @@ const els = {
   resultTitle: el("result-title"),
   resultBadge: el("result-badge"),
   resultSummary: el("result-summary"),
-  resultQuote: el("result-quote"),
-  resultTips: el("result-tips"),
-  highlightText: el("highlight-text"),
-  flopText: el("flop-text"),
-  dimensionGrid: el("dimension-grid"),
-  shareLines: el("share-lines"),
-  roundScoreList: el("round-score-list"),
+  resultOneLinerCore: el("oneliner-core"),
+  tierImg: el("tier-img"),
+  tierLabel: el("tier-label"),
+  tierTagline: el("tier-tagline"),
   restartBtn: el("restart-btn"),
   resultNoticeCard: el("result-notice-card"),
   resultNoticeLine: el("result-notice-line"),
@@ -819,6 +821,7 @@ async function startInterview(interviewerId) {
     switchView("meeting");
     if (els.meetingView) {
       els.meetingView.classList.remove("hud-collapsed");
+      els.meetingView.classList.toggle("track-technical", state.selectedInterviewTrack === "technical");
     }
     if (els.hudToggleBtn) {
       els.hudToggleBtn.setAttribute("aria-expanded", "true");
@@ -935,6 +938,76 @@ function renderTranscript(transcript) {
   els.tileInterviewer.classList.add("speaking");
   clearTimeout(state._speakingTimeout);
   state._speakingTimeout = setTimeout(() => els.tileInterviewer.classList.remove("speaking"), 2200);
+}
+
+function pickInterviewerFiller() {
+  const interviewerId = state.session?.selected?.interviewer?.id || "";
+  const roleTitle = state.session?.selected?.role?.title || "";
+
+  if (interviewerId === "master-strategist") {
+    const options = [
+      "嗯，我先盘一下你这步棋。",
+      "稍等，我看看你这段话的落点。",
+      "好，我把前后的逻辑串一下。",
+    ];
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  if (roleTitle && /前端|后端|算法|测试|客户端|全栈|AI/i.test(roleTitle)) {
+    const options = [
+      "嗯，我先对一下你这个技术点。",
+      "稍等，我看下你这个回答落没落到关键处。",
+      "好，我顺着你这个实现往下想一下。",
+    ];
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  return INTERVIEWER_FILLERS[Math.floor(Math.random() * INTERVIEWER_FILLERS.length)];
+}
+
+function showInterviewerFillerBubble(text) {
+  if (!els.transcript || !text) return null;
+  const bubble = document.createElement("article");
+  bubble.className = "bubble message-bubble interviewer";
+  bubble.dataset.filler = "true";
+
+  const label = document.createElement("span");
+  label.className = "bubble-label";
+  label.textContent = speakerLabel("interviewer");
+
+  const content = document.createElement("div");
+  content.textContent = text;
+
+  bubble.append(label, content);
+  els.transcript.appendChild(bubble);
+  els.transcript.scrollTop = els.transcript.scrollHeight;
+  els.tileInterviewer.classList.add("speaking");
+  clearTimeout(state._speakingTimeout);
+  state._speakingTimeout = setTimeout(() => els.tileInterviewer.classList.remove("speaking"), 2200);
+  return bubble;
+}
+
+function beginInterviewerThinking() {
+  const pending = {
+    timer: null,
+    bubble: null,
+  };
+
+  pending.timer = setTimeout(() => {
+    pending.bubble = showInterviewerFillerBubble(pickInterviewerFiller());
+  }, 450);
+
+  return pending;
+}
+
+function endInterviewerThinking(pending) {
+  if (!pending) return;
+  if (pending.timer) {
+    clearTimeout(pending.timer);
+  }
+  if (pending.bubble?.parentNode) {
+    pending.bubble.parentNode.removeChild(pending.bubble);
+  }
 }
 
 function toggleAnswerMode(mode) {
@@ -1125,6 +1198,7 @@ async function submitAnswer() {
   }
   stopAnswerTimer();
   els.submitAnswerBtn.disabled = true;
+  const pendingThinking = beginInterviewerThinking();
   try {
     const descriptor = await apiPost("/api/session/answer", {
       sessionId: state.session.sessionId,
@@ -1134,6 +1208,8 @@ async function submitAnswer() {
   } catch (err) {
     alert(err.message || "提交失败");
     els.submitAnswerBtn.disabled = false;
+  } finally {
+    endInterviewerThinking(pendingThinking);
   }
 }
 
@@ -1144,6 +1220,7 @@ async function submitCodeAnswer() {
   }
   stopAnswerTimer();
   els.codeSubmitBtn.disabled = true;
+  const pendingThinking = beginInterviewerThinking();
   try {
     const descriptor = await apiPost("/api/session/answer", {
       sessionId: state.session.sessionId,
@@ -1153,6 +1230,8 @@ async function submitCodeAnswer() {
   } catch (err) {
     alert(err.message || "提交失败");
     els.codeSubmitBtn.disabled = false;
+  } finally {
+    endInterviewerThinking(pendingThinking);
   }
 }
 
@@ -1160,6 +1239,7 @@ async function submitTimeout() {
   if (!state.session) return;
   els.submitAnswerBtn.disabled = true;
   els.codeSubmitBtn.disabled = true;
+  const pendingThinking = beginInterviewerThinking();
   try {
     const descriptor = await apiPost("/api/session/timeout", {
       sessionId: state.session.sessionId,
@@ -1169,12 +1249,15 @@ async function submitTimeout() {
     console.error(err);
     els.submitAnswerBtn.disabled = false;
     els.codeSubmitBtn.disabled = false;
+  } finally {
+    endInterviewerThinking(pendingThinking);
   }
 }
 
 function leaveEarly() {
   if (!state.session) return;
   if (!confirm("提前离开会被记为未通过，确定吗？")) return;
+  const metrics = state.session.metrics || {};
   finishMeeting({
     isFinal: true,
     phase: "final",
@@ -1182,12 +1265,16 @@ function leaveEarly() {
       verdict: "reject",
       verdictLabel: "自主退出",
       summary: "你在面试进行中选择了离开，本场结果按未通过处理。",
+      oneLiner: "感觉你是那种先把椅子坐热的人",
+      tier: { id: "lv", label: "驴", tagline: "这场基本没跑起来" },
+      sessionScore: Number(metrics.sessionScore || 0),
+      passScore: Number(metrics.passScore || 70),
       interviewerQuote: "下次准备好再来。",
       highlight: "—",
       flop: "—",
       tips: "建议在正式面试前练习多轮持续发言，保持节奏。",
       shareLines: ["我在 ShowMeTheOffer 中途退出了。", "下一次我会撑完全场。", ""],
-      dimensions: state.session.metrics.dimensions,
+      dimensions: metrics.dimensions,
       roundScores: state.session.roundHistory || [],
       offerLetter: null,
       forcedEndReason: "player_left",
@@ -1236,6 +1323,13 @@ function paintAnswerTimer(pct, text, urgent) {
   [els.timerFill, els.codeTimerFill].forEach((node) => {
     node.style.width = `${pct}%`;
   });
+
+  if (els.timerHorse) {
+    const clamped = Math.max(0, Math.min(100, pct));
+    els.timerHorse.style.left = `${clamped}%`;
+    els.timerHorse.classList.toggle("is-urgent", urgent);
+  }
+
   [els.timerText, els.codeTimerText].forEach((node) => {
     node.textContent = text;
     node.classList.toggle("urgent", urgent);
@@ -1384,33 +1478,19 @@ function finishMeeting(descriptor) {
     els.resultNoticeCard.classList.toggle("is-reject", report.verdict !== "offer");
   }
   els.resultSummary.textContent = report.summary;
-  els.resultQuote.textContent = report.interviewerQuote;
-  els.resultTips.textContent = `${report.tips} 综合 ${report.sessionScore} / 通过线 ${report.passScore}。`;
-  els.highlightText.textContent = report.highlight;
-  els.flopText.textContent = report.flop;
 
-  els.dimensionGrid.innerHTML = "";
-  Object.entries(report.dimensions).forEach(([key, value]) => {
-    const card = document.createElement("div");
-    card.className = "dimension-card";
-    card.innerHTML = `<span>${dimensionLabels[key] || key}</span><strong>${value}</strong>`;
-    els.dimensionGrid.appendChild(card);
-  });
+  const tier = resolveReportTier(report);
+  if (els.tierImg) {
+    els.tierImg.src = `assets/imgs/ranks/${tier.id}.png`;
+    els.tierImg.alt = `${tier.label}评级插画`;
+  }
+  if (els.tierLabel) els.tierLabel.textContent = tier.label;
+  if (els.tierTagline) els.tierTagline.textContent = tier.tagline || "";
 
-  els.shareLines.innerHTML = "";
-  (report.shareLines || []).forEach((line) => {
-    if (!line) return;
-    const p = document.createElement("p");
-    p.textContent = line;
-    els.shareLines.appendChild(p);
-  });
-
-  els.roundScoreList.innerHTML = "";
-  (report.roundScores || []).forEach((item) => {
-    const li = document.createElement("li");
-    li.textContent = `第 ${item.round} 轮：${item.score} 分（深挖 ${item.drillDepth} / 提示 ${item.hintsUsed}）`;
-    els.roundScoreList.appendChild(li);
-  });
+  if (els.resultOneLinerCore) {
+    const core = extractOneLinerCore(report.oneLiner, tier);
+    els.resultOneLinerCore.textContent = core;
+  }
 
   if (report.verdict === "offer" && report.offerLetter) {
     const letter = report.offerLetter;
@@ -1431,6 +1511,53 @@ function finishMeeting(descriptor) {
   }
 
   switchView("result");
+}
+
+const TIER_TABLE = [
+  { floor: 90, id: "qianlima", label: "千里马", tagline: "场上能一眼看出是干活的人" },
+  { floor: 80, id: "chitu", label: "赤兔马", tagline: "偶有亮点，关键题还能顶住" },
+  { floor: 70, id: "numa", label: "驽马", tagline: "能跑但还没跑出速度感" },
+  { floor: 55, id: "luozi", label: "骡子", tagline: "稳是稳，可惜没几道题答到位" },
+  { floor: 0, id: "lv", label: "驴", tagline: "今天这场基本是被牵着走的" },
+];
+
+function resolveReportTier(report) {
+  const raw = report && report.tier;
+  if (raw && typeof raw === "object" && raw.id) {
+    const fallback = TIER_TABLE.find((item) => item.id === raw.id);
+    return {
+      id: String(raw.id),
+      label: String(raw.label || (fallback && fallback.label) || ""),
+      tagline: String(raw.tagline || (fallback && fallback.tagline) || ""),
+    };
+  }
+  const score = Number((report && report.sessionScore) || 0);
+  const matched = TIER_TABLE.find((item) => score >= item.floor) || TIER_TABLE[TIER_TABLE.length - 1];
+  return { id: matched.id, label: matched.label, tagline: matched.tagline };
+}
+
+function extractOneLinerCore(raw, tier) {
+  const text = String(raw || "").trim();
+  if (!text) {
+    return tierFallbackCore(tier);
+  }
+  const core = text
+    .replace(/^感觉你是那种/, "")
+    .replace(/的人$/, "")
+    .trim();
+  return core || tierFallbackCore(tier);
+}
+
+function tierFallbackCore(tier) {
+  const fallback = {
+    qianlima: "能把细节讲到底",
+    chitu: "偶尔掉线但关键题能顶住",
+    numa: "平平稳稳但少了一点惊喜",
+    luozi: "耐操但回答容易打滑",
+    lv: "被追问两层就开始打滑",
+  };
+  const id = (tier && tier.id) || "numa";
+  return fallback[id] || "还能再练练";
 }
 
 /* =====================================================================
@@ -1559,7 +1686,12 @@ function updateEntryChrome() {
     els.appTopbar.classList.toggle("hidden", inEntry);
   }
   if (els.appTabbar) {
-    els.appTabbar.classList.toggle("hidden", inEntry);
+    // 与 switchView 中的全屏子视图（会议/结果/选赛道）一致：底栏由 subview-fullscreen 决定，不能在此处误删 hidden
+    if (inEntry) {
+      els.appTabbar.classList.add("hidden");
+    } else if (!document.body.classList.contains("subview-fullscreen")) {
+      els.appTabbar.classList.remove("hidden");
+    }
   }
 }
 
@@ -1829,11 +1961,13 @@ function avatarMarkup(interviewer, className = "invitation-avatar") {
   const src = String(interviewer?.avatar || "").trim();
   const initial = escapeHtml(initialOf(interviewer?.name || ""));
   const label = escapeHtml(interviewer?.name || "面试官");
+  const imgStyle = className.includes("boss-invite-avatar")
+    ? `object-position: ${escapeHtml(avatarObjectPosition(interviewer?.id))};`
+    : `object-position: center;`;
   if (src) {
-    const pos = avatarObjectPosition(interviewer?.id);
     return `
       <div class="${className} has-image">
-        <img src="${escapeHtml(src)}" alt="${label}形象" loading="lazy" style="object-position: ${escapeHtml(pos)};" />
+        <img src="${escapeHtml(src)}" alt="${label}形象" loading="lazy" style="${imgStyle}" />
       </div>
     `;
   }
