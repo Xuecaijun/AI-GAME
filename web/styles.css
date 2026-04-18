@@ -225,6 +225,14 @@ textarea:focus {
   grid-template-columns: 1fr;
 }
 
+.recommendation-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .selected-offer-bar {
   display: flex;
   align-items: center;
@@ -300,6 +308,15 @@ textarea:focus {
 }
 
 .start-row { margin-top: 20px; }
+
+.recommendation-empty {
+  display: grid;
+  gap: 8px;
+}
+
+.recommendation-empty h4 {
+  margin: 0;
+}
 
 /* ======================================================================
  * Invitation cards
@@ -1072,6 +1089,93 @@ textarea:focus {
 }
 .toast.hidden { display: none; }
 
+/* 进入会议：全屏阻塞遮罩（仿视频会议入会） */
+body.joining-meeting-active {
+  overflow: hidden;
+}
+
+.joining-meeting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: auto;
+  background: rgba(4, 12, 22, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.joining-meeting-overlay.hidden {
+  display: none !important;
+}
+
+.joining-meeting-card {
+  text-align: center;
+  max-width: 360px;
+  padding: 32px 28px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+}
+
+.joining-meeting-title {
+  margin: 20px 0 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.joining-meeting-sub {
+  margin: 0 0 20px;
+  font-size: 0.95rem;
+  color: var(--muted);
+  min-height: 1.5em;
+}
+
+.joining-meeting-pulse {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 3px solid rgba(108, 229, 255, 0.35);
+  border-top-color: var(--accent);
+  animation: joining-meeting-spin 0.9s linear infinite;
+}
+
+@keyframes joining-meeting-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.joining-meeting-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(145, 216, 255, 0.12);
+  overflow: hidden;
+}
+
+.joining-meeting-progress-bar {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  animation: joining-meeting-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes joining-meeting-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
 button:hover { transform: translateY(-1px); }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -1085,6 +1189,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .section-head,
   .start-row,
   .fake-toolbar,
+  .recommendation-toolbar,
   .resume-actions {
     flex-direction: column;
     align-items: flex-start;
@@ -1498,6 +1603,20 @@ body.theme-recruit .select-card.active {
 body.theme-recruit .field > span {
   font-size: 0.92rem;
   color: #4d4d4d;
+}
+
+body.theme-recruit .recommendation-toolbar {
+  margin-bottom: 4px;
+}
+
+body.theme-recruit .recommendation-toolbar > span {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #4d4d4d;
+}
+
+body.theme-recruit #recommendation-hint {
+  margin-bottom: 2px;
 }
 
 body.theme-recruit .role-feed-card {
