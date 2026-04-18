@@ -7,7 +7,7 @@ INTERVIEWER = {
     "title": "大周皇帝 / 组织掌舵者",
     "identity": "强势掌局者",
     "order": 120,
-    "avatar": "",
+    "avatar": "/assets/interviewers/queen-of-order.png",
     "interview_tracks": ["non-technical"],
     "style": "强压、果决、极看重组织判断与用人手腕",
     "tone": "她会观察你是否真能镇场，是否能在复杂人事中保持秩序与结果。",
