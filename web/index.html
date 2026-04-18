@@ -37,9 +37,9 @@
             <h3>技术类</h3>
             <span>进入</span>
           </button>
-          <button id="pick-non-technical-btn" type="button" class="track-choice-card disabled" aria-disabled="true">
+          <button id="pick-non-technical-btn" type="button" class="track-choice-card">
             <h3>非技术类</h3>
-            <span>开发中</span>
+            <span>进入</span>
           </button>
         </div>
       </section>
@@ -176,11 +176,15 @@
         <div class="meeting-layout">
           <section class="tile-grid panel">
             <div class="tile interviewer-tile" id="tile-interviewer">
-              <div class="tile-avatar">
-                <span id="tile-avatar-initial">面</span>
-                <span class="speaking-ring"></span>
+              <div class="tile-video-frame">
+                <img id="tile-avatar-image" class="tile-video-image hidden" alt="面试官形象" />
+                <div class="tile-avatar tile-avatar-fallback">
+                  <span id="tile-avatar-initial">面</span>
+                  <span class="speaking-ring"></span>
+                </div>
+                <div class="tile-video-scan"></div>
               </div>
-              <div class="tile-name">
+              <div class="tile-name tile-name-overlay">
                 <span id="tile-name">面试官</span>
                 <small id="tile-title">—</small>
               </div>

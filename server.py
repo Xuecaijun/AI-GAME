@@ -9,7 +9,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from backends.tech_interview_backend.engine import GameEngine
+from backends.non_tech_interview_backend.engine import GameEngine as NonTechGameEngine
+from backends.tech_interview_backend.engine import GameEngine as TechGameEngine
 from backends.tech_interview_backend.resume_parser import extract_text
 from backends.tech_interview_backend.tts_client import (
     TTSClientError,
@@ -20,7 +21,8 @@ from backends.tech_interview_backend.tts_client import (
 
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "web"
-engine: GameEngine | None = None
+tech_engine: TechGameEngine | None = None
+non_tech_engine: NonTechGameEngine | None = None
 
 
 def load_env() -> None:
@@ -37,6 +39,23 @@ def load_env() -> None:
         # (including empty values) do not disable runtime features.
         os.environ[key.strip()] = value.strip()
 
+
+def _track_from_payload(payload: dict | None) -> str:
+    track = str((payload or {}).get("interviewTrack") or "").strip()
+    return "non-technical" if track == "non-technical" else "technical"
+
+
+def _engine_by_track(track: str):
+    if track == "non-technical":
+        return non_tech_engine
+    return tech_engine
+
+
+def _engine_by_session(payload: dict | None):
+    session_id = str((payload or {}).get("sessionId") or "").strip()
+    if session_id and non_tech_engine and non_tech_engine.has_session(session_id):
+        return non_tech_engine
+    return tech_engine
 
 class AppHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -57,10 +76,22 @@ class AppHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/api/bootstrap":
-                self._send_json(engine.get_bootstrap())
+                bootstrap = tech_engine.get_bootstrap()
+                bootstrap["nonTechnicalInterviewers"] = non_tech_engine.get_bootstrap().get("nonTechnicalInterviewers", [])
+                tracks = bootstrap.get("interviewTracks", [])
+                known_ids = {item.get("id") for item in tracks}
+                if "non-technical" not in known_ids:
+                    tracks.append({
+                        "id": "non-technical",
+                        "label": "非技术面",
+                        "description": "娱乐化三选一卡池：角色自带岗位，不需简历。",
+                        "enabled": True,
+                    })
+                bootstrap["interviewTracks"] = tracks
+                self._send_json(bootstrap)
                 return
             if parsed.path == "/api/health":
-                self._send_json({"ok": True, "runtime": engine.ai_client.runtime_status()})
+                self._send_json({"ok": True, "runtime": tech_engine.ai_client.runtime_status()})
                 return
             if parsed.path == "/api/tts/status":
                 self._send_json({"ok": True, "configured": bool(tts_configured())})
@@ -78,25 +109,30 @@ class AppHandler(SimpleHTTPRequestHandler):
         try:
             payload = self._read_json()
             if parsed.path == "/api/resume/mock":
-                self._send_json(engine.generate_mock_resume(payload))
+                self._send_json(tech_engine.generate_mock_resume(payload))
                 return
             if parsed.path == "/api/resume/upload":
                 self._send_json(_handle_resume_upload(payload))
                 return
             if parsed.path == "/api/invitations":
-                self._send_json(engine.build_invitations(payload))
+                target_engine = _engine_by_track(_track_from_payload(payload))
+                self._send_json(target_engine.build_invitations(payload))
                 return
             if parsed.path == "/api/session/start":
-                self._send_json(engine.start_session(payload))
+                target_engine = _engine_by_track(_track_from_payload(payload))
+                self._send_json(target_engine.start_session(payload))
                 return
             if parsed.path == "/api/session/answer":
-                self._send_json(engine.submit_answer(payload))
+                target_engine = _engine_by_session(payload)
+                self._send_json(target_engine.submit_answer(payload))
                 return
             if parsed.path == "/api/session/timeout":
-                self._send_json(engine.submit_timeout(payload))
+                target_engine = _engine_by_session(payload)
+                self._send_json(target_engine.submit_timeout(payload))
                 return
             if parsed.path == "/api/session/event":
-                self._send_json(engine.submit_event(payload))
+                target_engine = _engine_by_session(payload)
+                self._send_json(target_engine.submit_event(payload))
                 return
             if parsed.path == "/api/tts":
                 text = str(payload.get("text") or "").strip()
@@ -168,8 +204,9 @@ def _handle_resume_upload(payload: dict) -> dict[str, str]:
 
 def main() -> None:
     load_env()
-    global engine
-    engine = GameEngine()
+    global tech_engine, non_tech_engine
+    tech_engine = TechGameEngine()
+    non_tech_engine = NonTechGameEngine()
     port = int(os.getenv("PORT", "8765"))
     server = ThreadingHTTPServer(("127.0.0.1", port), AppHandler)
     print(f"终面：AI面试官 已启动 -> http://127.0.0.1:{port}")

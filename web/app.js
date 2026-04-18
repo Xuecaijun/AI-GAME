@@ -121,6 +121,7 @@ const els = {
   hudStress: el("hud-stress"),
   stressFill: el("stress-fill"),
   tileInterviewer: el("tile-interviewer"),
+  tileAvatarImage: el("tile-avatar-image"),
   tileAvatarInitial: el("tile-avatar-initial"),
   tileName: el("tile-name"),
   tileTitle: el("tile-title"),
@@ -237,7 +238,8 @@ function bindEvents() {
     beginGame();
   });
   els.pickNonTechnicalBtn?.addEventListener("click", () => {
-    alert("非技术类面试正在开发中，敬请期待。");
+    state.selectedInterviewTrack = "non-technical";
+    beginNonTechnicalQuickEntry();
   });
 
   els.mockResumeBtn.addEventListener("click", generateMockResume);
@@ -406,13 +408,26 @@ function renderRoles() {
     if (els.customRoleWrap) els.customRoleWrap.style.display = "none";
     (state.bootstrap.nonTechnicalInterviewers || []).slice(0, 3).forEach((interviewer) => {
       const role = interviewer.featured_role || {};
-      const card = document.createElement("article");
-      card.className = "select-card non-technical-preview";
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = `select-card role-feed-card non-technical-preview ${role.id === state.selectedRoleId ? "active" : ""}`;
       card.innerHTML = `
+        ${avatarMarkup(interviewer, "select-card-avatar")}
         <h4>${escapeHtml(interviewer.name)}</h4>
         <p>${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
+        <p class="role-feed-summary">${escapeHtml(role.summary || interviewer.card_hint || "角色岗位将在下一步展示")}</p>
+        <div class="role-feed-tags">
+          ${(Array.isArray(role.keywords) ? role.keywords.slice(0, 3) : ["非技术面"]).map((tag) => `<span>${escapeHtml(String(tag))}</span>`).join("")}
+        </div>
         <small>${escapeHtml(role.title || "岗位将在下一步展示")}</small>
       `;
+      card.addEventListener("click", () => {
+        state.selectedRoleMode = "interviewer-owned";
+        state.selectedRoleId = role.id || interviewer.id;
+        state.roleConfirmed = true;
+        renderRoles();
+        renderRoleDependentSections();
+      });
       els.roleList.appendChild(card);
     });
     return;
@@ -519,6 +534,7 @@ function renderRoleDependentSections() {
       els.recommendationHint.textContent = "先上传个人简历，再生成与你经历相关的推荐岗位。";
     }
   }
+
   if (els.selectedOfferTitle) {
     els.selectedOfferTitle.textContent = selectedRecommendation
       ? `${selectedRecommendation.company} · ${selectedRecommendation.role.title}`
@@ -676,6 +692,7 @@ async function fetchInvitations() {
 
 function renderInvitations(data) {
   const isTechnical = state.selectedInterviewTrack === "technical";
+  els.invitationList.classList.toggle("nontech-rune-list", !isTechnical);
   if (els.invitationAnalysisTitle) {
     els.invitationAnalysisTitle.textContent = isTechnical ? "AI 简历分析" : "今夜卡池";
   }
@@ -698,24 +715,45 @@ function renderInvitations(data) {
   els.trackPlaceholder.classList.add("hidden");
   data.invitations.forEach((interviewer) => {
     const snippet = interviewer.invitation_copy || interviewer.tone || "";
+    const role = interviewer.featured_role || {};
     const card = document.createElement("article");
-    card.className = "boss-invite-card";
-    card.innerHTML = `
-      <div class="boss-invite-avatar" aria-hidden="true">${escapeHtml(initialOf(interviewer.name))}</div>
-      <div class="boss-invite-main">
-        <div class="boss-invite-top">
-          <h4 class="boss-invite-name">${escapeHtml(interviewer.name)}</h4>
-          <span class="boss-invite-pass">通过线 ${escapeHtml(String(interviewer.pass_score ?? ""))}</span>
+    card.className = `boss-invite-card ${isTechnical ? "" : "nontech-rune-card"}`.trim();
+    card.innerHTML = isTechnical
+      ? `
+        <div class="boss-invite-avatar-wrap">
+          ${avatarMarkup(interviewer, "boss-invite-avatar")}
         </div>
-        <p class="boss-invite-role">${escapeHtml(interviewer.title || "")}</p>
-        <div class="boss-invite-tags">
-          ${(interviewer.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+        <div class="boss-invite-main">
+          <div class="boss-invite-top">
+            <h4 class="boss-invite-name">${escapeHtml(interviewer.name)}</h4>
+            <span class="boss-invite-pass">通过线 ${escapeHtml(String(interviewer.pass_score ?? ""))}</span>
+          </div>
+          <p class="boss-invite-role">${escapeHtml(interviewer.title || "")}</p>
+          <div class="boss-invite-tags">
+            ${(interviewer.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+          </div>
+          <p class="boss-invite-snippet">${escapeHtml(snippet)}</p>
+          <p class="boss-invite-style muted">${escapeHtml(interviewer.style || "")}</p>
         </div>
-        <p class="boss-invite-snippet">${escapeHtml(snippet)}</p>
-        <p class="boss-invite-style muted">${escapeHtml(interviewer.style || "")}</p>
-      </div>
-      <button type="button" class="boss-invite-cta primary-btn">立即沟通</button>
-    `;
+        <button type="button" class="boss-invite-cta primary-btn">立即沟通</button>
+      `
+      : `
+        <div class="nontech-rune-portrait">${avatarMarkup(interviewer, "boss-invite-avatar")}</div>
+        <div class="boss-invite-main">
+          <div class="boss-invite-top">
+            <h4 class="boss-invite-name">${escapeHtml(interviewer.name)}</h4>
+            <span class="boss-invite-pass">通过线 ${escapeHtml(String(interviewer.pass_score ?? ""))}</span>
+          </div>
+          <p class="boss-invite-role">${escapeHtml(interviewer.identity || interviewer.title || "")}</p>
+          <p class="boss-invite-style muted">${escapeHtml(interviewer.style || snippet || "")}</p>
+          <p class="nontech-rune-job">招募岗位：${escapeHtml(role.title || "角色专属岗位")}</p>
+          <p class="boss-invite-snippet">${escapeHtml(role.summary || "暂无岗位说明")}</p>
+          <div class="boss-invite-tags">
+            ${(interviewer.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+          </div>
+        </div>
+        <button type="button" class="boss-invite-cta primary-btn">选择这张卡</button>
+      `;
     card.querySelector(".boss-invite-cta").addEventListener("click", () => startInterview(interviewer.id));
     els.invitationList.appendChild(card);
   });
@@ -859,6 +897,20 @@ function renderMeetingHud(descriptor) {
   els.tileName.textContent = selected.interviewer.name;
   els.tileTitle.textContent = selected.interviewer.title || selected.interviewer.style || "";
   els.tileAvatarInitial.textContent = initialOf(selected.interviewer.name);
+  const avatar = String(selected.interviewer.avatar || "").trim();
+  const hasAvatar = Boolean(avatar);
+  els.tileAvatarImage.classList.toggle("hidden", !hasAvatar);
+  els.tileAvatarInitial.parentElement.classList.toggle("hidden", hasAvatar);
+  if (hasAvatar) {
+    els.tileAvatarImage.src = avatar;
+    els.tileAvatarImage.alt = `${selected.interviewer.name}形象`;
+    els.tileAvatarImage.style.objectPosition = avatarObjectPosition(selected.interviewer.id);
+  } else {
+    els.tileAvatarImage.removeAttribute("src");
+    els.tileAvatarImage.alt = "面试官形象";
+    els.tileAvatarImage.style.objectPosition = "50% 50%";
+  }
+  els.tileInterviewer.classList.toggle("has-video", hasAvatar);
 
   const dots = els.drillIndicator.querySelectorAll(".drill-dot");
   dots.forEach((dot) => {
@@ -1513,11 +1565,25 @@ function openTrackPicker() {
   switchView("choose-track");
 }
 
-function beginGame() {
-  if (state.selectedInterviewTrack !== "technical") {
-    state.selectedInterviewTrack = "technical";
+async function beginNonTechnicalQuickEntry() {
+  els.startView?.classList.remove("active");
+  els.startView?.classList.add("hidden");
+  state.roleConfirmed = true;
+  state.selectedRoleId = null;
+  renderBootstrap();
+  try {
+    const data = await apiPost("/api/invitations", buildResumePayload());
+    state.invitations = data;
+    renderInvitations(data);
+    switchView("invitation");
+  } catch (err) {
+    alert(err.message || "加载非技术卡池失败");
+    switchView("resume");
   }
   resetTechnicalRecommendationState({ rerender: false });
+}
+
+function beginGame() {
   els.startView?.classList.remove("active");
   els.startView?.classList.add("hidden");
   switchView("resume");
@@ -1624,11 +1690,9 @@ function resetAll() {
   els.startView?.classList.add("hidden");
   els.startView?.classList.remove("active");
   state.customRoleTitle = "";
-  state.selectedInterviewTrack = state.bootstrap?.interviewTracks?.find((item) => item.enabled)?.id ?? "technical";
+  state.selectedInterviewTrack = "technical";
   resetTechnicalRecommendationState({ rerender: false });
-  if (state.selectedInterviewTrack !== "technical") {
-    state.selectedRoleId = null;
-  }
+  state.selectedRoleId = getDefaultTechnicalRole()?.id ?? null;
   els.resumeText.value = "";
   els.modeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === "custom");
@@ -1648,7 +1712,7 @@ function resetAll() {
   state.tts.lastSpokenIdx = 0;
   state.invitesNotifyPending = false;
   updateChatTabDot();
-  switchView("resume");
+  switchView("choose-track");
 }
 
 function buildResumePayload(overrides = {}) {
@@ -1669,12 +1733,13 @@ function buildResumePayload(overrides = {}) {
 }
 
 function ensureRoleSelection() {
+  const isTechnical = state.selectedInterviewTrack === "technical";
   if (!state.selectedRoleId) {
-    alert("请先选择一个岗位。");
+    alert(isTechnical ? "请先选择一个岗位。" : "请先选择一张角色岗位卡。");
     return false;
   }
   if (!state.roleConfirmed) {
-    alert("请先点击岗位卡片确认岗位。");
+    alert(isTechnical ? "请先点击岗位卡片确认岗位。" : "请先点击角色卡确认你要挑战的岗位。");
     return false;
   }
   return true;
@@ -1845,6 +1910,34 @@ function seededIndex(input) {
     hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
   }
   return hash;
+}
+
+function avatarMarkup(interviewer, className = "invitation-avatar") {
+  const src = String(interviewer?.avatar || "").trim();
+  const initial = escapeHtml(initialOf(interviewer?.name || ""));
+  const label = escapeHtml(interviewer?.name || "面试官");
+  if (src) {
+    const pos = avatarObjectPosition(interviewer?.id);
+    return `
+      <div class="${className} has-image">
+        <img src="${escapeHtml(src)}" alt="${label}形象" loading="lazy" style="object-position: ${escapeHtml(pos)};" />
+      </div>
+    `;
+  }
+  return `<div class="${className}">${initial}</div>`;
+}
+
+function avatarObjectPosition(interviewerId) {
+  const map = {
+    "donald-trump": "50% 22%",
+    "jackeylove": "50% 24%",
+    "song-jiang": "50% 20%",
+    "sun-wukong": "50% 22%",
+    "master-strategist": "50% 24%",
+    "queen-of-order": "50% 22%",
+    "detective-kid": "50% 24%",
+  };
+  return map[String(interviewerId || "")] || "50% 50%";
 }
 
 function escapeHtml(value) {
