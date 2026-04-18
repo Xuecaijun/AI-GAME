@@ -9,9 +9,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from backend.engine import GameEngine
-from backend.resume_parser import extract_text
-from backend.tts_client import TTSClientError, configured as tts_configured, synthesize_mp3_v3
+from backends.tech_interview_backend.engine import GameEngine
+from backends.tech_interview_backend.resume_parser import extract_text
+from backends.tech_interview_backend.tts_client import (
+    TTSClientError,
+    configured as tts_configured,
+    synthesize_mp3_v3,
+)
 
 
 ROOT = Path(__file__).resolve().parent
